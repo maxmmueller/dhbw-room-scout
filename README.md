@@ -1,1 +1,112 @@
-# dhbw-room-scout
+# DHBW Room Scout
+
+A minimal, mobile-first web app that shows DHBW Mannheim students which lecture rooms around them are free right now, on an isometric floor plan.
+
+- Product concept: [`idea.md`](idea.md)
+- User stories: [`requirements.md`](requirements.md)
+
+> **Status:** proof of concept. Only floor 2 (2. OG) of building B/C is mapped; other floors show the building outline and their free-room count.
+
+## Getting started
+
+Requirements: Node.js 20+.
+
+```sh
+npm install
+npm run dev
+```
+
+Open http://localhost:5173, enter a course ID (e.g. `TINF25IT1`) and press Enter.
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm run dev -- --host` | Same, also reachable from your phone (same Wi-Fi), via the printed "Network" URL |
+| `npm run build` | Type-check (`tsc`) and build into `dist/` |
+| `npm run preview` | Serve the production build locally |
+
+Opening `dist/index.html` directly does **not** work, because the API calls need the proxy (see below).
+
+### Testing tips
+
+- **Simulate a time:** add `?now=<ISO datetime>` to the URL, e.g. `http://localhost:5173/?now=2026-11-18T15:00` (local time). This is meant for demos and testing and is not linked from the UI.
+- **Change the course:** delete the `course` cookie (DevTools → Application → Cookies) and reload.
+- **Switch floors:** use the arrow buttons, swipe vertically, scroll the mouse wheel, or press ↑ / ↓.
+
+## Tech stack
+
+- [Vite](https://vitejs.dev/) + TypeScript (strict), no UI framework
+- The floor plan is rendered as an SVG string with a hand-written isometric projection
+- Plain CSS with tokens in `:root` (one fixed color scheme, no dark mode)
+- Font: Inter via Google Fonts
+
+## Project structure
+
+```
+index.html            App shell
+vite.config.ts        Dev/preview proxy for the DHBW APIs
+src/
+  main.ts             Onboarding, cookie, main screen, floor navigation, refresh loop
+  api.ts              API types and fetch functions
+  availability.ts     Room filter, user location, status rules, lockable rooms
+  floorplan.ts        Floor geometry (footprint, corridors, room rectangles)
+  render.ts           Isometric SVG renderer and status icons
+  style.css           All styles and color tokens
+floor2.jpeg           Source photo used to trace floor 2
+```
+
+## Data sources
+
+| Purpose | Upstream URL | Local path (proxied) |
+|---|---|---|
+| Course timetable | `https://api.dhbw.app/rapla/lectures/MA-{COURSE}/events` | `/api/lectures/MA-{COURSE}/events` |
+| Room occupancy for one day | `https://api.dhbw.dev/rapla/MA/rooms?date=YYYY-MM-DD` | `/api/rooms?date=YYYY-MM-DD` |
+
+- **No CORS headers:** neither API sends them, so the browser can't call them directly. `vite.config.ts` proxies `/api/*` for both `dev` and `preview`. A production deployment needs an equivalent reverse proxy (e.g. nginx, a Netlify/Vercel rewrite, or a small edge function).
+- **Times are in UTC:** API times are UTC ISO strings and are compared as `Date` objects. "Today" means the browser's local date.
+- **Unknown course:** the timetable endpoint returns `404`, which the app shows as "Course not found".
+- **Room IDs:** rooms are matched by the first token of the API room name, e.g. `"238B VL-Raum Unterrichtsraum"` → `238B`. Timetable events use the same names.
+- **Refresh:** the colors are recomputed every 60 s, and the data is fetched again every 5 min.
+
+## Domain rules
+
+All rules live in `src/availability.ts`.
+
+**Relevant rooms:** `details.displayName` starts with `VL-Raum`, `Hörsaal` or `Gruppenarbeitsraum`, and the building is at Coblitzallee (A/B/C). Other rooms are neither drawn nor counted.
+
+**User location:** taken from today's non-cancelled lectures, in this order of priority:
+1. the current lecture
+2. the last finished lecture
+3. the first upcoming lecture
+
+The map opens on that room's floor. If there is no lecture today, it opens on the ground floor (EG, level 0).
+
+**Room status:**
+
+| Status | Color + icon | Rule |
+|---|---|---|
+| `free` | green, ✓ | Free now and stays free until the target time (or has no further bookings) |
+| `soon` | amber, clock | Free now, but booked before the target time |
+| `busy` | grey, – | Booked right now |
+| `locked` | grey, lock | Free, but in `LOCKABLE_ROOMS` (such rooms are always locked when not in use) |
+
+The **target time** is the start of the user's next lecture today, or *now + 1 h* if there is none (after the last lecture, or on a lecture-free day).
+
+The user's own lecture room is always drawn **blue** with a pin above it. Its status icon still shows whether it's free.
+
+The floor arrows count `free` + `soon` rooms.
+
+**Lockable rooms:** the API doesn't provide this, so maintain the list by hand in `LOCKABLE_ROOMS` in `src/availability.ts`.
+
+## Adding a floor plan
+
+1. Take a photo or scan of the floor plan and note which rooms are relevant.
+2. In `src/floorplan.ts`, add an entry to `FLOOR_PLANS` keyed by the API's `floorLevel` (`0` = EG, `1` = 1. OG, …).
+3. Trace each relevant room as a rectangle `room('ID', x0, y0, x1, y1)`. Coordinates are pixels of the source image (north up), and the ID must match the API room number.
+4. Reuse `FOOTPRINT` / `CORRIDORS` if the building shell is the same; otherwise define your own.
+
+The renderer computes the viewBox automatically. Rooms that are missing from the API data are drawn as `busy`.
+
+## Design principles
+
+The UI stays deliberately minimal: no lists, filters, legends or info texts. Every status is shown by color **and** icon, so color-blind users can tell them apart. See [`idea.md`](idea.md) for the full concept.
