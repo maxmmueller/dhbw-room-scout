@@ -1,5 +1,12 @@
 import type { Status } from './availability';
-import type { FloorPlan, Rect } from './floorplan';
+import type { Rect, RoomShape } from './floorplan';
+
+export interface FloorView {
+  footprint: Rect[];
+  corridors: Rect[];
+  /** Traced rooms of this floor, or null if the floor isn't mapped yet. */
+  rooms: RoomShape[] | null;
+}
 
 // Projection: rotate the plan 45° and tilt it, giving an isometric look.
 const COS = Math.SQRT1_2;
@@ -17,8 +24,12 @@ export const ICONS = `
 <symbol id="i-busy" viewBox="0 0 24 24"><path d="M7.5 12h9"/></symbol>
 <symbol id="i-locked" viewBox="0 0 24 24"><rect x="7.2" y="11" width="9.6" height="7.2" rx="1.6"/><path d="M9.3 11V8.9a2.7 2.7 0 0 1 5.4 0V11"/></symbol>`;
 
+/**
+ * Renders one floor. Only rooms present in `statuses` are drawn, so the
+ * caller decides what's visible (usable rooms + the user's own room).
+ */
 export function renderFloor(
-  plan: FloorPlan,
+  plan: FloorView,
   statuses: Map<string, Status>,
   location: string | null,
 ): string {
@@ -46,11 +57,11 @@ export function renderFloor(
   svg += plan.corridors.map((r) => poly(top(r, 0), 'corridor')).join('');
 
   // Rooms as extruded blocks, back to front.
-  const rooms = [...plan.rooms].sort((a, b) => depth(a) - depth(b));
+  const rooms = (plan.rooms ?? []).filter((rm) => statuses.has(rm.id)).sort((a, b) => depth(a) - depth(b));
   const labels: string[] = [];
   let pin = '';
   for (const room of rooms) {
-    const status = statuses.get(room.id) ?? 'busy';
+    const status = statuses.get(room.id)!;
     const isHere = room.id === location;
     const h = isHere || status === 'free' || status === 'soon' ? ROOM_HIGH : ROOM_LOW;
     const r = { x0: room.x0 + INSET, y0: room.y0 + INSET, x1: room.x1 - INSET, y1: room.y1 - INSET };
@@ -74,7 +85,7 @@ export function renderFloor(
   }
   svg += labels.join('') + pin;
 
-  if (plan.rooms.length === 0) {
+  if (plan.rooms === null) {
     svg += `<text class="unmapped" x="0" y="0">Plan not mapped yet</text>`;
   }
 

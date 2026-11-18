@@ -22,9 +22,9 @@ export function isRelevant(room: ApiRoom): boolean {
   return RELEVANT_TYPE.test(room.details.displayName ?? '');
 }
 
-/** Main campus buildings A/B/C at Coblitzallee. */
-export function isMainCampus(room: ApiRoom): boolean {
-  return room.details.building?.name.includes('Coblitzallee') ?? false;
+/** Building letter A–E ("B-Gebäude, Coblitzallee …" → "B"); null for other sites. */
+export function buildingLetter(room: ApiRoom): string | null {
+  return room.details.building?.name.match(/^([A-E])-Gebäude/)?.[1] ?? null;
 }
 
 export interface DayContext {

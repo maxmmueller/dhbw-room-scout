@@ -5,7 +5,7 @@ A minimal, mobile-first web app that shows DHBW Mannheim students which lecture 
 - Product concept: [`idea.md`](idea.md)
 - User stories: [`requirements.md`](requirements.md)
 
-> **Status:** proof of concept. Only floor 2 (2. OG) of building B/C is mapped; other floors show the building outline and their free-room count.
+> **Status:** proof of concept. Only floor 2 (2. OG) of building B/C is mapped in detail. Every other floor and building shows only the building outline, but its free-room counts are real. The outlines of A, D and E are rough shapes from `campusplan.jpeg`.
 
 ## Getting started
 
@@ -31,7 +31,9 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 
 - **Simulate a time:** add `?now=<ISO datetime>` to the URL, e.g. `http://localhost:5173/?now=2026-11-18T15:00` (local time). This is meant for demos and testing and is not linked from the UI.
 - **Change the course:** delete the `course` cookie (DevTools → Application → Cookies) and reload.
-- **Switch floors:** use the arrow buttons, swipe vertically, scroll the mouse wheel, or press ↑ / ↓.
+- **Reset the default view:** delete `lastView` from Local Storage.
+- **Switch floors:** use the top/bottom arrows, swipe vertically, scroll the mouse wheel, or press ↑ / ↓.
+- **Switch buildings:** use the left/right arrows, swipe horizontally, or press ← / →.
 
 ## Tech stack
 
@@ -46,13 +48,14 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 index.html            App shell
 vite.config.ts        Dev/preview proxy for the DHBW APIs
 src/
-  main.ts             Onboarding, cookie, main screen, floor navigation, refresh loop
+  main.ts             Onboarding, cookie, main screen, floor/building navigation, default view, refresh loop
   api.ts              API types and fetch functions
   availability.ts     Room filter, user location, status rules, lockable rooms
-  floorplan.ts        Floor geometry (footprint, corridors, room rectangles)
+  floorplan.ts        Building units (B/C, A, D, E): footprint, corridors, traced rooms per floor
   render.ts           Isometric SVG renderer and status icons
   style.css           All styles and color tokens
-floor2.jpeg           Source photo used to trace floor 2
+floor2.jpeg           Source photo used to trace B/C floor 2
+campusplan.jpeg       Campus map (building positions and order)
 ```
 
 ## Data sources
@@ -72,14 +75,23 @@ floor2.jpeg           Source photo used to trace floor 2
 
 All rules live in `src/availability.ts`.
 
-**Relevant rooms:** `details.displayName` starts with `VL-Raum`, `Hörsaal` or `Gruppenarbeitsraum`, and the building is at Coblitzallee (A/B/C). Other rooms are neither drawn nor counted.
+**Relevant rooms:** `details.displayName` starts with `VL-Raum`, `Hörsaal` or `Gruppenarbeitsraum`. Other rooms are neither drawn nor counted. The one exception is the user's own room, which is always drawn.
+
+**Buildings:** a room's building comes from `building.name` (`"B-Gebäude, …"` → `B`). The building switch runs **B/C → A → D → E**. Other sites (Käfertaler Str., Handelsstraße) are ignored. A building's floor list comes from all of its rooms in the API, so a floor can exist with 0 usable rooms.
 
 **User location:** taken from today's non-cancelled lectures, in this order of priority:
 1. the current lecture
 2. the last finished lecture
 3. the first upcoming lecture
 
-The map opens on that room's floor. If there is no lecture today, it opens on the ground floor (EG, level 0).
+If a lecture lists several rooms, the first one is used.
+
+**Default view:**
+1. the building and floor of the user's own room
+2. otherwise the last viewed building and floor (`localStorage`, key `lastView`)
+3. otherwise B/C, ground floor (EG)
+
+After switching buildings, the same floor level is kept if it exists, otherwise the closest one.
 
 **Room status:**
 
@@ -100,12 +112,12 @@ The floor arrows count `free` + `soon` rooms.
 
 ## Adding a floor plan
 
-1. Take a photo or scan of the floor plan and note which rooms are relevant.
-2. In `src/floorplan.ts`, add an entry to `FLOOR_PLANS` keyed by the API's `floorLevel` (`0` = EG, `1` = 1. OG, …).
-3. Trace each relevant room as a rectangle `room('ID', x0, y0, x1, y1)`. Coordinates are pixels of the source image (north up), and the ID must match the API room number.
-4. Reuse `FOOTPRINT` / `CORRIDORS` if the building shell is the same; otherwise define your own.
+1. Take a photo or scan of the floor plan.
+2. In `src/floorplan.ts`, find the building unit in `BUILDINGS` and add an entry to its `floors`, keyed by the API's `floorLevel` (`0` = EG, `1` = 1. OG, …).
+3. Trace **every lecture-type room** as a rectangle `room('ID', x0, y0, x1, y1)`, including labs and EDV rooms. Coordinates are pixels of the source image, and the ID must match the API room number. Non-usable rooms are only drawn when they're the user's own room, so they need geometry too.
+4. Replace the rough `footprint` (and add `corridors`) for A, D and E once you have real plans. All floors of a building share its footprint.
 
-The renderer computes the viewBox automatically. Rooms that are missing from the API data are drawn as `busy`.
+The renderer computes the viewBox automatically and draws only usable rooms plus the user's own room. A floor without an entry in `floors` shows "Plan not mapped yet".
 
 ## Design principles
 

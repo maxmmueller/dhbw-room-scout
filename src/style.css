@@ -153,11 +153,42 @@ body {
 .screen {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    '. up .'
+    'left stage right'
+    '. down .';
+  padding: max(12px, env(safe-area-inset-top)) 4px max(12px, env(safe-area-inset-bottom));
+}
+
+/*
+ * Portrait (phones): the map is limited by width, so the building arrows
+ * float above it instead of taking side columns. The map is vertically
+ * centred and roughly 0.62 × as tall as it is wide, so the arrows sit in
+ * the empty band between the top floor button and the map.
+ */
+@media (orientation: portrait) {
+  .screen {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'up' 'stage' 'down';
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .screen > .bldg-nav {
+    position: absolute;
+    z-index: 1; /* the left button precedes .stage in the DOM and would sit below it */
+    top: max(96px, calc(50% - 31vw - 110px));
+  }
+
+  .screen > .bldg-nav.left { left: 8px; }
+  .screen > .bldg-nav.right { right: 8px; }
 }
 
 .stage {
+  grid-area: stage;
   position: relative;
   min-height: 0;
   display: grid;
@@ -173,12 +204,20 @@ body {
 
 .floor.enter-up { animation: enter-up 0.38s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .floor.enter-down { animation: enter-down 0.38s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.floor.enter-left { animation: enter-left 0.38s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.floor.enter-right { animation: enter-right 0.38s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 @keyframes enter-up {
   from { opacity: 0; transform: translateY(-36px); }
 }
 @keyframes enter-down {
   from { opacity: 0; transform: translateY(36px); }
+}
+@keyframes enter-left {
+  from { opacity: 0; transform: translateX(-36px); }
+}
+@keyframes enter-right {
+  from { opacity: 0; transform: translateX(36px); }
 }
 
 .map {
@@ -188,7 +227,7 @@ body {
   overflow: visible;
 }
 
-.current-floor {
+.position {
   position: absolute;
   left: 4px;
   bottom: 4px;
@@ -199,6 +238,9 @@ body {
 }
 
 /* floor switcher */
+.floor-nav.up { grid-area: up; }
+.floor-nav.down { grid-area: down; }
+
 .floor-nav {
   justify-self: center;
   display: flex;
@@ -258,6 +300,49 @@ body {
 }
 
 .count.none { color: var(--busy-ink); }
+
+/* building switcher */
+.bldg-nav.left { grid-area: left; }
+.bldg-nav.right { grid-area: right; }
+
+.bldg-nav {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 34px;
+  min-height: 96px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+
+div.bldg-nav { visibility: hidden; }
+.bldg-nav:hover { background: rgb(29 35 48 / 4%); }
+.bldg-nav:active { background: rgb(29 35 48 / 7%); }
+
+.bldg-nav .chev {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bldg-nav span {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
 
 /* ── isometric map ─────────────────────────────────────────── */
 .slab-t { fill: var(--slab-top); }
@@ -321,7 +406,7 @@ body {
 }
 
 .unmapped {
-  font: 600 44px var(--font);
+  font: 600 56px var(--font);
   text-anchor: middle;
   fill: var(--ink-soft);
 }
