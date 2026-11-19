@@ -176,7 +176,13 @@ function render(state: State, direction: Direction | null = null) {
   const above = idx >= 0 ? unitFloors[idx + 1] : undefined;
   const below = idx >= 0 ? unitFloors[idx - 1] : undefined;
   const b = BUILDINGS[unit];
-  const plan = { footprint: b.footprint, corridors: b.corridors, rooms: b.floors[level] ?? null };
+  const f = b.floors[level];
+  const plan = {
+    footprint: f?.footprint ?? b.footprint,
+    corridors: f?.corridors ?? b.corridors,
+    restricted: f?.restricted ?? [],
+    rooms: f?.rooms ?? null,
+  };
 
   app.innerHTML = `
     <svg width="0" height="0" class="defs" aria-hidden="true"><defs>${ICONS}</defs></svg>

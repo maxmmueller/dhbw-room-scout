@@ -2,10 +2,10 @@
  * Building geometry.
  *
  * B/C: plan units traced from `floor2.jpeg` (≈ 1 unit = 1 px of the photo at
- * 1848 px width); floor 1 from `floor1.jpeg`, rotated and scaled to match.
- * A, D, E: rough footprints from `campusplan.jpeg`, scaled
- * to the same units. Floor plans list every traced room; the renderer only
- * draws usable rooms and the user's own room.
+ * 1848 px width); floors 0, 1 and 3 from `floor<n>.jpeg`, rotated and scaled
+ * to match. A, D, E: rough footprints from `campusplan.jpeg`, scaled to the
+ * same units. Floor plans list every numbered room on the photos; the renderer
+ * only draws usable rooms (by API room type) and the user's own room.
  */
 
 export interface Rect {
@@ -25,10 +25,19 @@ export interface BuildingUnit {
   label: string;
   /** Building letters from the API (`building.name` starts with "<X>-Gebäude"). */
   letters: string[];
+  /** Default outline / corridors, used by floors that don't override them. */
   footprint: Rect[];
   corridors: Rect[];
-  /** Traced rooms per API `floorLevel`. Floors missing here aren't mapped yet. */
-  floors: Record<number, RoomShape[]>;
+  /** Traced floors per API `floorLevel`. Floors missing here aren't mapped yet. */
+  floors: Record<number, FloorPlan>;
+}
+
+export interface FloorPlan {
+  rooms: RoomShape[];
+  footprint?: Rect[];
+  corridors?: Rect[];
+  /** Parts of the floor students can't enter; drawn hatched. */
+  restricted?: Rect[];
 }
 
 const r = (x0: number, y0: number, x1: number, y1: number): Rect => ({ x0, y0, x1, y1 });
@@ -62,9 +71,53 @@ const BC: BuildingUnit = {
     r(190, 280, 255, 1735),
   ],
   floors: {
+    // floor0.jpeg and floor3.jpeg are rotated 90° clockwise relative to
+    // floor2.jpeg (their top is the west wing).
+    0: {
+      // No west wing on the ground floor: the car park sits there.
+      footprint: [
+        r(175, 115, 1760, 525), // north wing
+        r(70, 280, 180, 520), // NW stairs
+        r(1400, 115, 1760, 1915), // east wing
+        r(1760, 490, 1830, 675), // east annex (stairs / WC)
+        r(1760, 1355, 1830, 1540), // east annex (stairs / WC)
+        r(160, 1500, 1760, 1915), // south wing
+        r(50, 1500, 165, 1750), // SW stairs
+      ],
+      corridors: [r(180, 280, 1605, 330), r(1555, 280, 1605, 1735), r(165, 1690, 1605, 1735)],
+      rooms: [
+        // north wing, outer row
+        room('037B', 190, 125, 490, 275),
+        room('038B', 490, 125, 784, 275),
+        room('039B', 784, 125, 1079, 275),
+        room('040B', 1079, 125, 1367, 275),
+        room('041B', 1367, 125, 1645, 275),
+        // north wing, inner row
+        room('036B', 190, 335, 583, 520),
+        room('035B', 583, 335, 882, 490),
+        room('034B', 882, 335, 1171, 490),
+        room('033B', 1171, 335, 1367, 490),
+        // east wing
+        room('051B', 1405, 680, 1552, 1013),
+        room('050B', 1405, 1013, 1552, 1357),
+        room('048B', 1605, 780, 1740, 1061),
+        room('049B', 1605, 1061, 1740, 1352),
+        // south wing, inner row
+        room('067C', 165, 1500, 572, 1690),
+        room('068C', 572, 1540, 866, 1690),
+        room('069C', 866, 1540, 1160, 1690),
+        room('070C', 1160, 1540, 1351, 1690),
+        // south wing, outer row
+        room('066C', 165, 1735, 474, 1885),
+        room('065C', 474, 1735, 773, 1885),
+        room('064C', 773, 1735, 1057, 1885),
+        room('063C', 1057, 1735, 1351, 1885),
+        room('062C', 1351, 1735, 1629, 1885),
+      ],
+    },
     // floor1.jpeg is rotated 90° counter-clockwise relative to floor2.jpeg
     // (its top is the east wing); traced there and mapped into these units.
-    1: [
+    1: { rooms: [
       // north wing, outer row
       room('137B', 175, 125, 370, 275),
       room('137.1B', 370, 125, 670, 275),
@@ -91,8 +144,8 @@ const BC: BuildingUnit = {
       // south wing, outer row
       room('161C', 1151, 1735, 1435, 1880),
       room('160C', 1435, 1735, 1724, 1880),
-    ],
-    2: [
+    ] },
+    2: { rooms: [
       // north wing, outer row
       room('238B', 178, 125, 422, 275),
       room('239B', 422, 125, 665, 275),
@@ -141,7 +194,36 @@ const BC: BuildingUnit = {
       room('263C', 1262, 1735, 1360, 1880),
       room('262C', 1360, 1735, 1450, 1880),
       room('261C', 1450, 1735, 1640, 1880),
-    ],
+    ] },
+    3: {
+      footprint: [
+        r(170, 115, 1760, 525), // north wing
+        r(1400, 115, 1760, 1915), // east wing
+        r(1760, 495, 1900, 680), // east annex (WC)
+        r(1760, 1370, 1900, 1565), // east annex (WC)
+        r(150, 1480, 1760, 1915), // south wing
+        r(45, 280, 260, 1735), // west corridor + stairs
+        r(35, 655, 400, 1340), // west block
+      ],
+      // West block: staff only (crossed out on the photo).
+      restricted: [r(35, 655, 400, 1340)],
+      rooms: [
+        // north wing, outer row
+        room('337B', 195, 125, 500, 275),
+        room('338B', 500, 125, 594, 275),
+        room('339B', 594, 125, 884, 275),
+        room('339.1B', 884, 125, 983, 275),
+        room('340B', 983, 125, 1071, 275),
+        room('341B', 1071, 125, 1268, 275),
+        room('342B', 1268, 125, 1465, 275),
+        // north wing, inner row
+        room('336B', 255, 335, 583, 520),
+        room('335B', 583, 335, 884, 490),
+        room('334B', 884, 335, 1071, 490),
+        room('333B', 1071, 335, 1356, 490),
+        room('332B', 1356, 335, 1455, 490),
+      ],
+    },
   },
 };
 

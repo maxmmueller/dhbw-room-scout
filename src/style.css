@@ -350,6 +350,11 @@ div.bldg-nav { visibility: hidden; }
 .slab-s { fill: var(--slab-s); }
 .corridor { fill: var(--corridor); }
 
+/* areas students can't enter: slab faded out and hatched */
+.restricted { fill: url(#hatch); }
+.hatch-bg { fill: var(--bg); }
+.hatch { stroke: var(--slab-s); stroke-width: 4; }
+
 .room .t, .room .e, .room .s {
   stroke-linejoin: round;
   stroke-width: 1.5;

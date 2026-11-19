@@ -4,6 +4,8 @@ import type { Rect, RoomShape } from './floorplan';
 export interface FloorView {
   footprint: Rect[];
   corridors: Rect[];
+  /** Areas students can't enter, drawn hatched. */
+  restricted: Rect[];
   /** Traced rooms of this floor, or null if the floor isn't mapped yet. */
   rooms: RoomShape[] | null;
 }
@@ -17,6 +19,10 @@ const ROOM_LOW = 10; // unavailable rooms recede
 const INSET = 7; // gap between neighbouring rooms
 
 type Pt = [number, number];
+
+const HATCH =
+  '<pattern id="hatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+  '<rect class="hatch-bg" width="16" height="16"/><line class="hatch" x1="0" y1="0" x2="0" y2="16"/></pattern>';
 
 export const ICONS = `
 <symbol id="i-free" viewBox="0 0 24 24"><path d="M6.5 12.5l3.8 3.8L17.5 8.5"/></symbol>
@@ -55,6 +61,7 @@ export function renderFloor(
   let svg = slabs.map((r) => poly(east(r, -SLAB, 0), 'slab-e') + poly(south(r, -SLAB, 0), 'slab-s')).join('');
   svg += slabs.map((r) => poly(top(r, 0), 'slab-t')).join('');
   svg += plan.corridors.map((r) => poly(top(r, 0), 'corridor')).join('');
+  svg += plan.restricted.map((r) => poly(top(r, 0), 'restricted')).join('');
 
   // Rooms as extruded blocks, back to front.
   const rooms = (plan.rooms ?? []).filter((rm) => statuses.has(rm.id)).sort((a, b) => depth(a) - depth(b));
@@ -96,5 +103,5 @@ export function renderFloor(
   const pad = 30;
   const vb = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
 
-  return `<svg class="map" viewBox="${vb.map((v) => v.toFixed(0)).join(' ')}" role="img" aria-label="Floor plan"><defs>${ICONS}</defs>${svg}</svg>`;
+  return `<svg class="map" viewBox="${vb.map((v) => v.toFixed(0)).join(' ')}" role="img" aria-label="Floor plan"><defs>${ICONS}${HATCH}</defs>${svg}</svg>`;
 }
