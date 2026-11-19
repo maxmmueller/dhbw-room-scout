@@ -259,6 +259,7 @@ body {
   transition: background 0.15s;
 }
 
+div.floor-nav { visibility: hidden; }
 .floor-nav:hover { background: rgb(29 35 48 / 4%); }
 .floor-nav:active { background: rgb(29 35 48 / 7%); }
 
