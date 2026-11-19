@@ -2,7 +2,8 @@
  * Building geometry.
  *
  * B/C: plan units traced from `floor2.jpeg` (≈ 1 unit = 1 px of the photo at
- * 1848 px width). A, D, E: rough footprints from `campusplan.jpeg`, scaled
+ * 1848 px width); floor 1 from `floor1.jpeg`, rotated and scaled to match.
+ * A, D, E: rough footprints from `campusplan.jpeg`, scaled
  * to the same units. Floor plans list every traced room; the renderer only
  * draws usable rooms and the user's own room.
  */
@@ -61,6 +62,36 @@ const BC: BuildingUnit = {
     r(190, 280, 255, 1735),
   ],
   floors: {
+    // floor1.jpeg is rotated 90° counter-clockwise relative to floor2.jpeg
+    // (its top is the east wing); traced there and mapped into these units.
+    1: [
+      // north wing, outer row
+      room('137B', 175, 125, 370, 275),
+      room('137.1B', 370, 125, 670, 275),
+      room('138B', 670, 125, 964, 275),
+      room('139B', 964, 125, 1258, 275),
+      room('140B', 1258, 125, 1555, 275),
+      // north wing, inner row
+      room('136.1B', 250, 335, 575, 525),
+      room('136B', 575, 335, 862, 490),
+      room('135B', 862, 335, 1156, 490),
+      // east wing
+      room('153B', 1405, 780, 1552, 1067),
+      room('152B', 1405, 1067, 1552, 1358),
+      room('151B', 1605, 1067, 1755, 1358),
+      // west wing
+      room('175C', 42, 672, 192, 975),
+      room('173C', 42, 1067, 192, 1358),
+      room('178C', 255, 672, 405, 1036),
+      room('179C', 255, 1036, 410, 1358),
+      // south wing, inner row
+      room('180C', 255, 1505, 590, 1690),
+      room('184C', 868, 1540, 1151, 1690),
+      room('185C', 1151, 1540, 1435, 1690),
+      // south wing, outer row
+      room('161C', 1151, 1735, 1435, 1880),
+      room('160C', 1435, 1735, 1724, 1880),
+    ],
     2: [
       // north wing, outer row
       room('238B', 178, 125, 422, 275),
