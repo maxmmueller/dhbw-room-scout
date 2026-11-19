@@ -38,6 +38,16 @@ export interface FloorPlan {
   corridors?: Rect[];
   /** Parts of the floor students can't enter; drawn hatched. */
   restricted?: Rect[];
+  /** Walkways to other buildings, fading out towards `to`. */
+  bridges?: Bridge[];
+}
+
+export interface Bridge {
+  rect: Rect;
+  /** Side of the plan the bridge leads off to. */
+  to: 'n' | 'e' | 's' | 'w';
+  /** Label of the building it leads to. */
+  label: string;
 }
 
 const r = (x0: number, y0: number, x1: number, y1: number): Rect => ({ x0, y0, x1, y1 });
@@ -117,7 +127,17 @@ const BC: BuildingUnit = {
     },
     // floor1.jpeg is rotated 90° counter-clockwise relative to floor2.jpeg
     // (its top is the east wing); traced there and mapped into these units.
-    1: { rooms: [
+    1: {
+      // The east corridor runs on through the outer row into the bridge to A
+      // (length from campusplan.jpeg / connection.png).
+      corridors: [
+        r(178, 280, 1600, 330),
+        r(1555, 115, 1648, 1735),
+        r(200, 1690, 1605, 1735),
+        r(190, 280, 255, 1735),
+      ],
+      bridges: [{ rect: r(1555, -105, 1648, 115), to: 'n', label: 'A' }],
+      rooms: [
       // north wing, outer row
       room('137B', 175, 125, 370, 275),
       room('137.1B', 370, 125, 670, 275),

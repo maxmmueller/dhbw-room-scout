@@ -262,6 +262,7 @@ body {
 div.floor-nav { visibility: hidden; }
 .floor-nav:hover { background: rgb(29 35 48 / 4%); }
 .floor-nav:active { background: rgb(29 35 48 / 7%); }
+.floor-nav:disabled { opacity: 0.35; pointer-events: none; }
 
 .floor-nav .chev {
   width: 26px;
@@ -354,6 +355,19 @@ div.bldg-nav { visibility: hidden; }
 .restricted { fill: url(#hatch); }
 .hatch-bg { fill: var(--bg); }
 .hatch { stroke: var(--slab-s); stroke-width: 4; }
+
+/* walkway to another building, fading out */
+stop.slab-t { stop-color: var(--slab-top); }
+stop.slab-e { stop-color: var(--slab-e); }
+stop.slab-s { stop-color: var(--slab-s); }
+stop.corridor { stop-color: var(--corridor); }
+stop.fade { stop-opacity: 0; }
+.bridge-label {
+  font: 600 40px var(--font);
+  text-anchor: middle;
+  fill: var(--ink-soft);
+  opacity: 0.6;
+}
 
 .room .t, .room .e, .room .s {
   stroke-linejoin: round;

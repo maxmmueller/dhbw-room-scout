@@ -1,11 +1,12 @@
 import type { Status } from './availability';
-import type { Rect, RoomShape } from './floorplan';
+import type { Bridge, Rect, RoomShape } from './floorplan';
 
 export interface FloorView {
   footprint: Rect[];
   corridors: Rect[];
   /** Areas students can't enter, drawn hatched. */
   restricted: Rect[];
+  bridges: Bridge[];
   /** Traced rooms of this floor, or null if the floor isn't mapped yet. */
   rooms: RoomShape[] | null;
 }
@@ -17,6 +18,7 @@ const SLAB = 26; // slab thickness
 const ROOM_HIGH = 44; // available rooms stand out
 const ROOM_LOW = 10; // unavailable rooms recede
 const INSET = 7; // gap between neighbouring rooms
+const LABEL_GAP = 60; // distance from a bridge's end to its label
 
 type Pt = [number, number];
 
@@ -63,6 +65,44 @@ export function renderFloor(
   svg += plan.corridors.map((r) => poly(top(r, 0), 'corridor')).join('');
   svg += plan.restricted.map((r) => poly(top(r, 0), 'restricted')).join('');
 
+  // Bridges: a stub of slab + corridor that fades out towards the other building.
+  let defs = '';
+  plan.bridges.forEach((b, i) => {
+    const { rect: r, to } = b;
+    const mx = (r.x0 + r.x1) / 2;
+    const my = (r.y0 + r.y1) / 2;
+    const ends: Record<Bridge['to'], [Pt, Pt]> = {
+      n: [p(mx, r.y1), p(mx, r.y0)],
+      s: [p(mx, r.y0), p(mx, r.y1)],
+      w: [p(r.x1, my), p(r.x0, my)],
+      e: [p(r.x0, my), p(r.x1, my)],
+    };
+    const [[ax, ay], [bx, by]] = ends[to];
+    const grad = (id: string, cls: string) =>
+      `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}">` +
+      `<stop class="${cls}" offset="0"/><stop class="${cls} fade" offset="1"/></linearGradient>`;
+    const id = `bridge${i}`;
+    defs += grad(`${id}-t`, 'slab-t') + grad(`${id}-e`, 'slab-e') + grad(`${id}-s`, 'slab-s') + grad(`${id}-c`, 'corridor');
+    const along = to === 'n' || to === 's';
+    const inner = along
+      ? { ...r, x0: r.x0 + (r.x1 - r.x0) * 0.2, x1: r.x1 - (r.x1 - r.x0) * 0.2 }
+      : { ...r, y0: r.y0 + (r.y1 - r.y0) * 0.2, y1: r.y1 - (r.y1 - r.y0) * 0.2 };
+    const fill = (pts: Pt[], suffix: string) =>
+      `<polygon fill="url(#${id}-${suffix})" points="${pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}"/>`;
+    // Visible side faces, except the one that backs onto the building.
+    if (to !== 'w') svg += fill(east(r, -SLAB, 0), 'e');
+    if (to !== 'n') svg += fill(south(r, -SLAB, 0), 's');
+    svg += fill(top(r, 0), 't') + fill(top(inner, 0), 'c');
+    const off: Record<Bridge['to'], [number, number]> = {
+      n: [mx, r.y0 - LABEL_GAP],
+      s: [mx, r.y1 + LABEL_GAP],
+      w: [r.x0 - LABEL_GAP, my],
+      e: [r.x1 + LABEL_GAP, my],
+    };
+    const [lx, ly] = p(...off[to]);
+    svg += `<text class="bridge-label" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${b.label}</text>`;
+  });
+
   // Rooms as extruded blocks, back to front.
   const rooms = (plan.rooms ?? []).filter((rm) => statuses.has(rm.id)).sort((a, b) => depth(a) - depth(b));
   const labels: string[] = [];
@@ -97,11 +137,16 @@ export function renderFloor(
   }
 
   // Tight viewBox around the projected building (+ room for labels and pin).
-  const corners = all.flatMap((r) => [...top(r, ROOM_HIGH + 240), ...top(r, -SLAB)]);
+  const reach = (b: Bridge): Rect => {
+    const m = 2 * LABEL_GAP; // keep the bridge's label inside the view
+    const { x0, y0, x1, y1 } = b.rect;
+    return { n: { x0, y0: y0 - m, x1, y1 }, s: { x0, y0, x1, y1: y1 + m }, w: { x0: x0 - m, y0, x1, y1 }, e: { x0, y0, x1: x1 + m, y1 } }[b.to];
+  };
+  const corners = [...all, ...plan.bridges.map(reach)].flatMap((r) => [...top(r, ROOM_HIGH + 240), ...top(r, -SLAB)]);
   const xs = corners.map((c) => c[0]);
   const ys = corners.map((c) => c[1]);
   const pad = 30;
   const vb = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
 
-  return `<svg class="map" viewBox="${vb.map((v) => v.toFixed(0)).join(' ')}" role="img" aria-label="Floor plan"><defs>${ICONS}${HATCH}</defs>${svg}</svg>`;
+  return `<svg class="map" viewBox="${vb.map((v) => v.toFixed(0)).join(' ')}" role="img" aria-label="Floor plan"><defs>${ICONS}${HATCH}${defs}</defs>${svg}</svg>`;
 }

@@ -84,7 +84,12 @@ interface Floor {
   level: number;
   name: string;
   available: number;
+  /** The user's lecture room (current / last / next) is on this floor. */
+  hasOwn: boolean;
 }
+
+/** Worth navigating to: something is free there, or it's where your lecture is. */
+const isUseful = (f: Floor) => f.available > 0 || f.hasOwn;
 
 interface State {
   course: string;
@@ -110,12 +115,15 @@ function compute(state: State) {
     const level = room.details.floorLevel;
     if (unit < 0 || level === null) continue;
 
-    const floor = floors[unit].get(level) ?? { level, name: room.details.floor ?? `${level}`, available: 0 };
+    const floor = floors[unit].get(level) ?? { level, name: room.details.floor ?? `${level}`, available: 0, hasOwn: false };
     floors[unit].set(level, floor);
 
     const id = roomId(room.name);
     const isOwn = id === ctx.location;
-    if (isOwn) own = { unit, level };
+    if (isOwn) {
+      own = { unit, level };
+      floor.hasOwn = true;
+    }
     if (!isRelevant(room) && !isOwn) continue;
 
     const s = roomStatus(room, t, ctx.freeUntilTarget);
@@ -147,9 +155,10 @@ const chevron = (dir: Direction) => `<svg class="chev" viewBox="0 0 24 24"><path
 
 function floorButton(dir: 'up' | 'down', floor: Floor | undefined) {
   if (!floor) return `<div class="floor-nav ${dir}" aria-hidden="true"></div>`;
+  const off = isUseful(floor) ? '' : ' disabled';
   const count = `<span class="count${floor.available ? '' : ' none'}">
       <svg viewBox="0 0 24 24"><use href="#i-${floor.available ? 'free' : 'busy'}"/></svg>${floor.available}</span>`;
-  return `<button class="floor-nav ${dir}" aria-label="${floor.name}, ${floor.available} free rooms">
+  return `<button class="floor-nav ${dir}"${off} aria-label="${floor.name}, ${floor.available} free rooms">
       ${dir === 'up' ? chevron('up') : ''}<span class="floor-name">${floor.name}</span>${count}${dir === 'down' ? chevron('down') : ''}
     </button>`;
 }
@@ -173,14 +182,18 @@ function render(state: State, direction: Direction | null = null) {
   const unitFloors = floors[unit];
   const idx = unitFloors.findIndex((f) => f.level === level);
   const current = unitFloors[idx];
-  const above = idx >= 0 ? unitFloors[idx + 1] : undefined;
-  const below = idx >= 0 ? unitFloors[idx - 1] : undefined;
+  // Skip floors with nothing for you; if none is left, show the next one disabled.
+  const higher = idx >= 0 ? unitFloors.slice(idx + 1) : [];
+  const lower = idx >= 0 ? unitFloors.slice(0, idx).reverse() : [];
+  const above = higher.find(isUseful) ?? higher[0];
+  const below = lower.find(isUseful) ?? lower[0];
   const b = BUILDINGS[unit];
   const f = b.floors[level];
   const plan = {
     footprint: f?.footprint ?? b.footprint,
     corridors: f?.corridors ?? b.corridors,
     restricted: f?.restricted ?? [],
+    bridges: f?.bridges ?? [],
     rooms: f?.rooms ?? null,
   };
 
@@ -205,8 +218,8 @@ function render(state: State, direction: Direction | null = null) {
   const toUnit = (u: number, dir: Direction) =>
     BUILDINGS[u] && go({ unit: u, level: closestLevel(floors[u], level) }, dir);
 
-  nav.up = () => above && go({ unit, level: above.level }, 'up');
-  nav.down = () => below && go({ unit, level: below.level }, 'down');
+  nav.up = () => above && isUseful(above) && go({ unit, level: above.level }, 'up');
+  nav.down = () => below && isUseful(below) && go({ unit, level: below.level }, 'down');
   nav.left = () => toUnit(unit - 1, 'left');
   nav.right = () => toUnit(unit + 1, 'right');
 
