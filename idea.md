@@ -31,10 +31,9 @@ The user's location is taken from their timetable:
 
 ## Main Screen
 - An **isometric floor plan**, showing **one floor of one building at a time**.
-- **Switching floors:** arrow buttons or vertical swipes at the top and bottom edges of the screen.
-- **Free-room counters:** each floor arrow shows the floor's name and how many rooms are free there, like the free-space display in a parking garage.
-- **Switching buildings:** arrow buttons or horizontal swipes at the left and right edges. The buildings follow the campus map (`campusplan.jpeg`) in the order **B/C → A → D → E**, where B and C form one connected ring. The building arrows only show the neighbouring building's letter, with no count. After switching, the app shows the same floor level if the new building has it, otherwise the closest one.
-- **Position label:** a small, unobtrusive label shows the current building and floor (e.g. `B/C · 2. OG`).
+- **Switching floors:** vertical swipes, or tapping a pill of the floor indicator (a column of small pills in the top-right corner, like the photo dots of an Instagram post). Swipes skip floors where nothing is free.
+- **Switching buildings:** horizontal swipes, or tapping a pill of the building indicator (a row of pills at the bottom). The buildings follow the campus map (`floorplan/campusplan.jpeg`) in the order **B/C → A → D → E**, where B and C form one connected ring. After switching, the app shows the same floor level if the new building has it, otherwise the closest one.
+- **Indicators only while navigating:** both indicators are invisible at rest and appear while the user touches, swipes or scrolls. After a change, the new floor or building name pops up next to its pill for a moment. Swiping past the last floor or building makes the map bounce. When the app opens, the indicators and names show briefly so users learn they exist.
 - **Default view:** the building and floor of the user's own room. Without one, the last viewed building and floor on this device. If nothing has been viewed yet, the ground floor (EG) of B/C.
 - **User's room:** always drawn **blue** with a **pin**, whatever its status, and even if it isn't a usable room type (e.g. an EDV room). Its status icon is still shown.
 
@@ -46,7 +45,7 @@ The user's location is taken from their timetable:
 | Lecture-free day | Free for ≥ 1 h | Free for < 1 h | Occupied or locked |
 
 - Unavailable rooms (occupied, or lockable and not in use) are greyed out, so the screen isn't crowded with signal colors.
-- Only rooms marked green or yellow count toward the free-room numbers on the floor arrows.
+- Only rooms marked green or yellow make a floor worth swiping to.
 - **Accessibility:** every state is **always** shown with an icon as well as its color, so the app works for color-blind users.
 
 ## Design Principles

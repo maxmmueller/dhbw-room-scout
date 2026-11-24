@@ -1,6 +1,8 @@
 /**
  * Building geometry.
  *
+ * Source images live in `floorplan/` (gitignored, kept locally).
+ *
  * B/C: plan units traced from `floor2.jpeg` (≈ 1 unit = 1 px of the photo at
  * 1848 px width); floors 0, 1 and 3 from `floor<n>.jpeg`, rotated and scaled
  * to match. A, D, E: rough footprints from `campusplan.jpeg`, scaled to the

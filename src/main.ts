@@ -10,7 +10,7 @@ import {
 } from './api';
 import { buildingLetter, dayContext, isAvailable, isRelevant, roomId, roomStatus, type Status } from './availability';
 import { BUILDINGS } from './floorplan';
-import { ICONS, renderFloor } from './render';
+import { renderFloor } from './render';
 
 const app = document.getElementById('app')!;
 const COOKIE = 'course';
@@ -278,31 +278,17 @@ function closestLevel(floors: Floor[], level: number): number {
   return floors.reduce((best, f) => (Math.abs(f.level - level) < Math.abs(best - level) ? f.level : best), floors[0].level);
 }
 
-const CHEVRONS: Record<Direction, string> = {
-  up: 'M6 14.5l6-6 6 6',
-  down: 'M6 9.5l6 6 6-6',
-  left: 'M14.5 6l-6 6 6 6',
-  right: 'M9.5 6l6 6-6 6',
+/** Current navigation targets; replaced on every render. */
+const nav = {
+  up() {},
+  down() {},
+  left() {},
+  right() {},
+  /** Tap on a floor pill (index from the lowest floor). */
+  floor(_i: number) {},
+  /** Tap on a building pill. */
+  unit(_i: number) {},
 };
-const chevron = (dir: Direction) => `<svg class="chev" viewBox="0 0 24 24"><path d="${CHEVRONS[dir]}"/></svg>`;
-
-function floorButton(dir: 'up' | 'down', floor: Floor | undefined) {
-  if (!floor) return `<div class="floor-nav ${dir}" aria-hidden="true"></div>`;
-  const off = isUseful(floor) ? '' : ' disabled';
-  const count = `<span class="count${floor.available ? '' : ' none'}">
-      <svg viewBox="0 0 24 24"><use href="#i-${floor.available ? 'free' : 'busy'}"/></svg>${floor.available}</span>`;
-  return `<button class="floor-nav ${dir}"${off} aria-label="${floor.name}, ${floor.available} free rooms">
-      ${dir === 'up' ? chevron('up') : ''}<span class="floor-name">${floor.name}</span>${count}${dir === 'down' ? chevron('down') : ''}
-    </button>`;
-}
-
-function buildingButton(dir: 'left' | 'right', unit: number) {
-  const b = BUILDINGS[unit];
-  if (!b) return `<div class="bldg-nav ${dir}" aria-hidden="true"></div>`;
-  return `<button class="bldg-nav ${dir}" aria-label="Building ${b.label}">${chevron(dir)}<span>${b.label}</span></button>`;
-}
-
-const nav: Record<Direction, () => void> = { up() {}, down() {}, left() {}, right() {} };
 const noop = () => {};
 
 const MENU_ICONS = {
@@ -330,7 +316,127 @@ function menu(state: State, hasOwn: boolean) {
     </div>`;
 }
 
-function render(state: State, direction: Direction | null = null) {
+/**
+ * Builds the main screen once per session. Afterwards `render` only updates
+ * the map, the pills and the menu, so e.g. the building pills don't replay
+ * their animation when the floor changes (and the minute refresh doesn't
+ * flash anything).
+ */
+function mountScreen() {
+  app.innerHTML = `
+    <div class="screen">
+      <main class="stage"><div class="floor"></div></main>
+      <nav class="pills floors" aria-label="Floors"></nav>
+      <nav class="pills units" aria-label="Buildings"></nav>
+      <span class="peek peek-floor" aria-hidden="true"></span>
+      <span class="peek peek-unit" aria-hidden="true"></span>
+      <p class="sr-only" aria-live="polite"></p>
+      <div class="menu-layer"></div>
+    </div>`;
+  const screen = app.querySelector<HTMLElement>('.screen')!;
+  screen.addEventListener('click', (e) => {
+    const pill = (e.target as Element).closest<HTMLElement>('.pill');
+    if (!pill) return;
+    if (pill.dataset.floor !== undefined) nav.floor(Number(pill.dataset.floor));
+    else nav.unit(Number(pill.dataset.unit));
+  });
+}
+
+interface PillState {
+  label: string;
+  active: boolean;
+}
+
+/**
+ * Updates a pill row in place: pills are added/removed only at the end and
+ * classes change only where the state changed, so the active pill's "grow"
+ * animation plays only on the row that actually changed.
+ */
+function syncPills(row: HTMLElement, attr: 'floor' | 'unit', pills: PillState[]) {
+  while (row.children.length > pills.length) row.lastElementChild!.remove();
+  while (row.children.length < pills.length) {
+    const b = document.createElement('button');
+    b.className = 'pill';
+    b.dataset[attr] = String(row.children.length);
+    row.append(b);
+  }
+  pills.forEach((p, i) => {
+    const b = row.children[i] as HTMLElement;
+    b.setAttribute('aria-label', p.label);
+    b.toggleAttribute('aria-current', p.active);
+    b.classList.toggle('on', p.active);
+  });
+}
+
+// ── indicator visibility ──────────────────────────────────────────────
+const AWAKE_MS = 1600;
+const PEEK_MS = 1100;
+let awakeTimer = 0;
+let peekTimer = 0;
+
+/** Shows the pills on any interaction; they fade out after a moment without. */
+function wake(ms = AWAKE_MS) {
+  const screen = app.querySelector('.screen');
+  if (!screen) return;
+  screen.classList.add('awake');
+  clearTimeout(awakeTimer);
+  awakeTimer = window.setTimeout(() => screen.classList.remove('awake'), ms);
+}
+
+/** Puts the pop-up labels next to the active pills. */
+function placePeeks() {
+  const screen = app.querySelector<HTMLElement>('.screen');
+  const fOn = screen?.querySelector('.floors .on');
+  const uOn = screen?.querySelector('.units .on');
+  if (!screen || !fOn || !uOn) return;
+  const box = screen.getBoundingClientRect();
+  const f = fOn.getBoundingClientRect();
+  const u = uOn.getBoundingClientRect();
+  const peekFloor = screen.querySelector<HTMLElement>('.peek-floor')!;
+  const peekUnit = screen.querySelector<HTMLElement>('.peek-unit')!;
+  peekFloor.style.top = `${f.top + f.height / 2 - box.top}px`;
+  peekFloor.style.right = `${box.right - f.left + 6}px`;
+  peekUnit.style.left = `${u.left + u.width / 2 - box.left}px`;
+  peekUnit.style.bottom = `${box.bottom - u.top + 6}px`;
+}
+
+/** Briefly shows the name of the floor and/or building next to its pill. */
+function peek(which: 'floor' | 'unit' | 'both', ms = PEEK_MS) {
+  const screen = app.querySelector('.screen');
+  if (!screen) return;
+  placePeeks();
+  window.setTimeout(placePeeks, 300); // again once the active pill has grown
+  screen.classList.remove('peek-floor-on', 'peek-unit-on');
+  if (which !== 'unit') screen.classList.add('peek-floor-on');
+  if (which !== 'floor') screen.classList.add('peek-unit-on');
+  clearTimeout(peekTimer);
+  peekTimer = window.setTimeout(() => screen.classList.remove('peek-floor-on', 'peek-unit-on'), ms);
+}
+
+/** On app start: show pills and labels for a moment, so people learn they exist. */
+function intro() {
+  wake(2600);
+  peek('both', 2600);
+}
+
+const NUDGE: Record<Direction, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
+
+/** Rubber-band nudge when there's nothing further in that direction. */
+function bounce(dir: Direction) {
+  wake();
+  const [x, y] = NUDGE[dir];
+  app.querySelector('.floor')?.animate(
+    [{ transform: 'translate(0, 0)' }, { transform: `translate(${x * 16}px, ${y * 16}px)` }, { transform: 'translate(0, 0)' }],
+    { duration: 320, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1)' },
+  );
+}
+
+// ── render ────────────────────────────────────────────────────────────
+/**
+ * Updates the main screen for `state`. `direction` animates the map in,
+ * `changed` pops up the name of what changed (floor / building).
+ */
+function render(state: State, direction: Direction | null = null, changed: 'floor' | 'unit' | 'both' | null = null) {
   const { location, statuses, floors, own } = compute(state);
 
   if (!state.view) {
@@ -341,11 +447,9 @@ function render(state: State, direction: Direction | null = null) {
   const unitFloors = floors[unit];
   const idx = unitFloors.findIndex((f) => f.level === level);
   const current = unitFloors[idx];
-  // Skip floors with nothing for you; if none is left, show the next one disabled.
-  const higher = idx >= 0 ? unitFloors.slice(idx + 1) : [];
-  const lower = idx >= 0 ? unitFloors.slice(0, idx).reverse() : [];
-  const above = higher.find(isUseful) ?? higher[0];
-  const below = lower.find(isUseful) ?? lower[0];
+  // Swiping skips floors with nothing for you (tapping a pill doesn't).
+  const above = idx >= 0 ? unitFloors.slice(idx + 1).find(isUseful) : undefined;
+  const below = idx >= 0 ? unitFloors.slice(0, idx).reverse().find(isUseful) : undefined;
   const b = BUILDINGS[unit];
   const f = b.floors[level];
   const plan = {
@@ -355,44 +459,65 @@ function render(state: State, direction: Direction | null = null) {
     rooms: f?.rooms ?? null,
   };
 
-  app.innerHTML = `
-    <svg width="0" height="0" class="defs" aria-hidden="true"><defs>${ICONS}</defs></svg>
-    <div class="screen">
-      ${floorButton('up', above)}
-      ${buildingButton('left', unit - 1)}
-      <main class="stage">
-        <div class="floor ${direction ? `enter-${direction}` : ''}">${renderFloor(plan, statuses, location)}</div>
-        <div class="position">${b.label} · ${current?.name ?? ''}</div>
-      </main>
-      ${buildingButton('right', unit + 1)}
-      ${floorButton('down', below)}
-      ${menu(state, own !== null)}
-    </div>`;
-
-  const go = (next: View, dir: Direction) => {
-    state.view = next;
-    saveLastView(next);
-    render(state, dir);
-  };
-  const toUnit = (u: number, dir: Direction) =>
-    BUILDINGS[u] && go({ unit: u, level: closestLevel(floors[u], level) }, dir);
-
-  bindMenu(state, own);
-  if (state.menuOpen) {
-    // The menu is modal: no floor/building changes behind it.
-    nav.up = nav.down = nav.left = nav.right = noop;
-    return;
+  const floorEl = app.querySelector<HTMLElement>('.floor')!;
+  floorEl.innerHTML = renderFloor(plan, statuses, location);
+  floorEl.className = 'floor';
+  if (direction) {
+    void floorEl.offsetWidth; // restart the enter animation
+    floorEl.classList.add(`enter-${direction}`);
   }
 
-  nav.up = () => above && isUseful(above) && go({ unit, level: above.level }, 'up');
-  nav.down = () => below && isUseful(below) && go({ unit, level: below.level }, 'down');
-  nav.left = () => toUnit(unit - 1, 'left');
-  nav.right = () => toUnit(unit + 1, 'right');
+  syncPills(
+    app.querySelector<HTMLElement>('.pills.floors')!,
+    'floor',
+    unitFloors.map((fl) => ({ label: fl.name, active: fl.level === level })),
+  );
+  syncPills(
+    app.querySelector<HTMLElement>('.pills.units')!,
+    'unit',
+    BUILDINGS.map((bu, i) => ({ label: `Building ${bu.label}`, active: i === unit })),
+  );
+  const position = `${b.label} · ${current?.name ?? ''}`;
+  app.querySelector('.peek-floor')!.textContent = current?.name ?? '';
+  app.querySelector('.peek-unit')!.textContent = b.label;
+  const live = app.querySelector('.sr-only')!;
+  if (live.textContent !== position) live.textContent = position;
 
-  app.querySelector('button.floor-nav.up')?.addEventListener('click', nav.up);
-  app.querySelector('button.floor-nav.down')?.addEventListener('click', nav.down);
-  app.querySelector('button.bldg-nav.left')?.addEventListener('click', nav.left);
-  app.querySelector('button.bldg-nav.right')?.addEventListener('click', nav.right);
+  app.querySelector('.menu-layer')!.innerHTML = menu(state, own !== null);
+  bindMenu(state, own);
+
+  if (changed) {
+    wake();
+    peek(changed);
+  }
+
+  const go = (next: View, dir: Direction, what: 'floor' | 'unit') => {
+    state.view = next;
+    saveLastView(next);
+    render(state, dir, what);
+  };
+  const toFloor = (i: number) => {
+    const target = unitFloors[i];
+    if (target && target.level !== level) go({ unit, level: target.level }, target.level > level ? 'up' : 'down', 'floor');
+  };
+  const toUnit = (u: number) => {
+    if (u === unit) return;
+    const dir: Direction = u < unit ? 'left' : 'right';
+    if (!BUILDINGS[u]) return bounce(dir);
+    go({ unit: u, level: closestLevel(floors[u], level) }, dir, 'unit');
+  };
+
+  if (state.menuOpen) {
+    // The menu is modal: no floor/building changes behind it.
+    Object.assign(nav, { up: noop, down: noop, left: noop, right: noop, floor: noop, unit: noop });
+    return;
+  }
+  nav.up = () => (above ? go({ unit, level: above.level }, 'up', 'floor') : bounce('up'));
+  nav.down = () => (below ? go({ unit, level: below.level }, 'down', 'floor') : bounce('down'));
+  nav.left = () => toUnit(unit - 1);
+  nav.right = () => toUnit(unit + 1);
+  nav.floor = toFloor;
+  nav.unit = toUnit;
 }
 
 function bindMenu(state: State, own: View | null) {
@@ -434,6 +559,7 @@ function bindMenu(state: State, own: View | null) {
         saveLastView(own);
       }
       setOpen(false);
+      peek('both');
     },
     refresh: () => {
       state.refreshing = true;
@@ -449,7 +575,16 @@ function bindMenu(state: State, own: View | null) {
 
 function bindGestures(signal: AbortSignal) {
   let start: { x: number; y: number } | null = null;
-  app.addEventListener('pointerdown', (e) => (start = { x: e.clientX, y: e.clientY }), { signal });
+  app.addEventListener(
+    'pointerdown',
+    (e) => {
+      // Taps on pills and the menu aren't swipes and don't wake the pills.
+      if ((e.target as Element).closest('.pill, .menu-layer')) return;
+      start = { x: e.clientX, y: e.clientY };
+      wake();
+    },
+    { signal },
+  );
   app.addEventListener(
     'pointerup',
     (e) => {
@@ -468,6 +603,7 @@ function bindGestures(signal: AbortSignal) {
     'wheel',
     (e) => {
       if (Math.abs(e.deltaY) < 30 || Date.now() < wheelLock) return;
+      wake();
       wheelLock = Date.now() + 500;
       (e.deltaY < 0 ? nav.up : nav.down)();
     },
@@ -498,8 +634,9 @@ async function refetch(state: State) {
 }
 
 /** Shows the main screen for `state` and keeps it up to date. */
-function run(state: State) {
+function run(state: State, { showIntro = false } = {}) {
   session?.stop();
+  mountScreen();
   const ac = new AbortController();
   bindGestures(ac.signal);
   // While the menu is open, skip re-renders (they would close it); closing re-renders.
@@ -517,6 +654,7 @@ function run(state: State) {
     },
   };
   render(state);
+  if (showIntro) intro();
 }
 
 async function start(course: string, events?: LectureEvent[]) {
@@ -524,7 +662,7 @@ async function start(course: string, events?: LectureEvent[]) {
   app.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
   try {
     const [ev, rooms] = await Promise.all([events ?? fetchLectures(course), fetchRooms(now())]);
-    run({ course, events: ev, rooms, view: null, menuOpen: false, refreshing: false });
+    run({ course, events: ev, rooms, view: null, menuOpen: false, refreshing: false }, { showIntro: true });
   } catch (err) {
     if (err instanceof CourseNotFoundError) {
       clearCourse();

@@ -70,7 +70,7 @@ So that I can see at a glance where the free rooms are and walk straight to one.
 
 *Acceptance criteria:*
 - Exactly one floor of one building unit is visible at a time.
-- The plan is a simplified, geometrically faithful drawing based on the real floor plans (e.g. `floor2.jpeg`).
+- The plan is a simplified, geometrically faithful drawing based on the real floor plans (photos in `floorplan/`, e.g. `floorplan/floor2.jpeg`; kept locally, not in the repository).
 - The map is the only content of the main screen and fills the available space.
 
 #### US05 – Only usable rooms are drawn
@@ -97,44 +97,51 @@ So that I can find the room once I'm on the floor.
 #### US07 – Switch floors
 
 As a student,
-I want to switch floors with arrow buttons or a vertical swipe at the top and bottom edges of the screen,
-So that I can check the floors above and below me.
+I want to switch floors with a vertical swipe or by tapping the floor indicator,
+So that I can check the floors above and below me without buttons covering the map.
 
 *Acceptance criteria:*
-- The top arrow goes one floor up, the bottom arrow one floor down; an arrow is hidden if there is no floor in that direction.
-- A vertical swipe does the same; on desktop the mouse wheel and the ↑ / ↓ keys work too.
+- Swiping down shows the floor above, swiping up the floor below; on desktop the mouse wheel and the ↑ / ↓ keys work too.
+- The floor indicator is a column of small pills in the top-right corner, below the menu button: one pill per floor, the lowest floor at the bottom. The current floor's pill is stretched and dark.
+- Tapping a pill jumps directly to that floor.
 - The floor change is animated in the direction of travel.
+- Swiping past the top or bottom floor gives a short "bounce" of the map instead of doing nothing.
 
-#### US08 – Free-room counts on the floor arrows
+#### US08 – Skip floors with nothing for me
 
 As a student,
-I want each floor arrow to show the floor's name and how many rooms are available there,
-So that I can tell whether it's worth changing floors, like the free-space display in a parking garage.
+I want a swipe to skip floors where nothing is free and my lecture isn't,
+So that I get to a useful floor with as few swipes as possible.
 
 *Acceptance criteria:*
-- The count includes the green and yellow rooms of that floor in the current building unit.
-- The count is shown with an icon, and a floor with 0 available rooms is visibly different (not by color alone).
+- A floor is useful if at least one room on it is available (green or yellow) or it holds the own room.
+- Swiping up / down goes to the next useful floor in that direction; if there is none, the map bounces (see [US07](#us07--switch-floors)).
+- Tapping a pill always goes to that floor, useful or not.
 
 #### US09 – Switch buildings
 
 As a student,
-I want to switch between building units with arrow buttons or a horizontal swipe at the left and right edges of the screen,
+I want to switch between building units with a horizontal swipe or by tapping the building indicator,
 So that I can look for free rooms in the neighbouring building.
 
 *Acceptance criteria:*
-- The units are ordered as on the campus map: **B/C → A → D → E**. The switch does not wrap around.
-- Each arrow shows only the letter of the neighbouring unit (e.g. `A`), no count; an arrow is hidden at either end.
-- A horizontal swipe does the same; on desktop the ← / → keys work too.
+- The units are ordered as on the campus map: **B/C → A → D → E**. The switch does not wrap around; swiping past either end bounces.
+- The building indicator is a row of small pills centered at the bottom, one per unit; the current unit's pill is stretched and dark. Tapping a pill jumps to that unit.
+- Swiping right shows the unit on the left, swiping left the one on the right; on desktop the ← / → keys work too.
 - After switching, the same floor level is shown if the new unit has it, otherwise the closest existing level.
+- Changing the floor doesn't redraw or re-animate the building indicator, and vice versa.
 
-#### US10 – Current position indicator
+#### US10 – Indicators that stay out of the way
 
-As a user,
-I want to see which building unit and floor I'm currently looking at,
-So that I don't lose orientation after switching.
+As a student,
+I want the floor and building indicators to appear only when I navigate,
+So that the map can use the whole screen but I still know where I am.
 
 *Acceptance criteria:*
-- A small, unobtrusive label shows the building unit and floor (e.g. `B/C · 2. OG`).
+- At rest the indicators are invisible and can't be tapped by accident; any touch, swipe, scroll or key press shows them, and they fade out about 1.5 s after the last interaction.
+- After a change, the new floor name (e.g. `2. OG`) or building (e.g. `B/C`) pops up next to its pill for about a second.
+- When the app opens, both indicators and both names are shown for a moment, so users learn that they exist.
+- The current building and floor are announced to screen readers (e.g. `B/C · 2. OG`), and the pills are reachable by keyboard (they become visible when focused).
 
 #### US11 – Default view
 
@@ -265,7 +272,6 @@ So that I can use the app as reliably as everyone else.
 
 *Acceptance criteria:*
 - Every state always has an icon: free (✓), soon occupied (clock), occupied (–), locked (lock).
-- The free-room counts on the floor arrows also use an icon.
 
 #### US21 – Minimal interface
 
@@ -275,7 +281,7 @@ So that I can find a room within seconds without distractions.
 
 *Acceptance criteria:*
 - No lists, filters, settings, legends, info texts, times (e.g. no "free until") or recommendations.
-- The only UI elements besides the map are the floor and building arrows, the position label and the menu button (see [US30](#us30--menu-for-less-frequent-actions)).
+- The only UI elements besides the map are the menu button (see [US30](#us30--menu-for-less-frequent-actions)) and the floor and building indicators, which are only visible while navigating (see [US10](#us10--indicators-that-stay-out-of-the-way)).
 
 #### US22 – Single color scheme
 
@@ -300,7 +306,7 @@ So that I can use it on the go, and still use it on my laptop.
 
 *Acceptance criteria:*
 - The layout is designed for phones first and scales to laptop screens.
-- Touch gestures (swipe) on mobile; buttons, mouse wheel and arrow keys on desktop.
+- Touch gestures (swipe) on mobile; mouse wheel, arrow keys and clicking the indicators on desktop.
 - The app is a plain web app (no PWA / install).
 - The UI language is English.
 
@@ -373,7 +379,9 @@ So that I'm not shown rooms at other sites.
 
 These were part of earlier drafts and are deliberately **not** planned for now:
 
-- Campus overview map and building side view (replaced by the building/floor arrows)
+- Campus overview map and building side view (replaced by the building/floor indicators)
+- Free-room counts per floor and the arrow buttons that showed them (replaced by the indicators, see [US10](#us10--indicators-that-stay-out-of-the-way))
+- A permanent position label (replaced by the pop-up names next to the indicators)
 - Breadcrumb navigation
 - Recommendation card / "best room" logic
 - "Free until" times and "last updated" indicator

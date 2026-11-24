@@ -50,10 +50,6 @@ body {
   user-select: none;
 }
 
-.defs {
-  position: absolute;
-}
-
 /* ── onboarding ─────────────────────────────────────────────── */
 .onboarding {
   height: 100%;
@@ -228,49 +224,15 @@ body {
 
 /* ── main screen ───────────────────────────────────────────── */
 .screen {
+  position: relative;
   height: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    '. up .'
-    'left stage right'
-    '. down .';
-  position: relative;
-  padding: max(12px, env(safe-area-inset-top)) 4px max(12px, env(safe-area-inset-bottom));
 }
 
-/*
- * Portrait (phones): the map is limited by width, so the building arrows
- * float above it instead of taking side columns. The map is vertically
- * centred and roughly 0.62 × as tall as it is wide, so the arrows sit in
- * the empty band between the top floor button and the map.
- */
-@media (orientation: portrait) {
-  .screen {
-    position: relative;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'up' 'stage' 'down';
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
-  .screen > .bldg-nav {
-    position: absolute;
-    z-index: 1; /* the left button precedes .stage in the DOM and would sit below it */
-    top: max(96px, calc(50% - 31vw - 110px));
-  }
-
-  .screen > .bldg-nav.left { left: 8px; }
-  .screen > .bldg-nav.right { right: 8px; }
-}
-
+/* The map uses the full width (on phones it's limited by width); only the
+   menu button row at the top and a strip for the building pills are kept clear. */
 .stage {
-  grid-area: stage;
-  position: relative;
-  min-height: 0;
-  display: grid;
-  place-items: center;
+  position: absolute;
+  inset: max(56px, calc(env(safe-area-inset-top) + 44px)) 4px max(40px, calc(env(safe-area-inset-bottom) + 28px));
 }
 
 .floor {
@@ -305,122 +267,112 @@ body {
   overflow: visible;
 }
 
-.position {
+/* ── page indicators (US07, US09, US10) ─────────────────────── */
+/* Pills: one per floor (top right, under the menu; ground floor at the
+   bottom) and one per building unit (bottom center). Invisible at rest,
+   shown while the user interacts and for a moment after. */
+.pills {
   position: absolute;
-  left: 4px;
-  bottom: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--ink-soft);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none; /* invisible pills mustn't catch taps on the map */
+  transition: opacity 0.6s;
 }
 
-/* floor switcher */
-.floor-nav.up { grid-area: up; }
-.floor-nav.down { grid-area: down; }
+.screen.awake .pills,
+.pills:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.15s;
+}
 
-.floor-nav {
-  justify-self: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 120px;
-  min-height: 72px;
-  padding: 6px 18px;
+.pills.floors {
+  top: max(64px, calc(env(safe-area-inset-top) + 52px));
+  right: 14px;
+  flex-direction: column-reverse;
+}
+
+.pills.units {
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pill {
+  display: grid;
+  place-items: center;
+  padding: 5px;
   border: 0;
   background: none;
-  color: var(--ink);
-  font: inherit;
   cursor: pointer;
-  border-radius: var(--radius);
-  transition: background 0.15s;
 }
 
-div.floor-nav { visibility: hidden; }
-.floor-nav:hover { background: rgb(29 35 48 / 4%); }
-.floor-nav:active { background: rgb(29 35 48 / 7%); }
-.floor-nav:disabled { opacity: 0.35; pointer-events: none; }
-
-.floor-nav .chev {
-  width: 26px;
-  height: 26px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.pill::before {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: rgb(29 35 48 / 22%);
+  transition: background 0.2s;
 }
 
-.floor-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  letter-spacing: 0.04em;
+.pill:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -1px;
+  border-radius: 99px;
 }
 
-.count {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 17px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--free);
-}
-
-.count svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.count.none { color: var(--busy-ink); }
-
-/* building switcher */
-.bldg-nav.left { grid-area: left; }
-.bldg-nav.right { grid-area: right; }
-
-.bldg-nav {
-  align-self: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 34px;
-  padding: 10px 6px;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-  border-radius: var(--radius);
-  transition: background 0.15s;
-}
-
-div.bldg-nav { visibility: hidden; }
-.bldg-nav:hover { background: rgb(29 35 48 / 4%); }
-.bldg-nav:active { background: rgb(29 35 48 / 7%); }
-
-.bldg-nav .chev {
-  width: 24px;
+.floors .pill.on::before {
   height: 24px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  background: var(--ink);
+  animation: grow-v 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.bldg-nav span {
-  font-size: 15px;
+.units .pill.on::before {
+  width: 24px;
+  background: var(--ink);
+  animation: grow-h 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes grow-v { from { height: 7px; } }
+@keyframes grow-h { from { width: 7px; } }
+
+/* Name of the floor / building, popping up next to its pill after a change. */
+.peek {
+  position: absolute;
+  z-index: 2;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+
+.peek-floor { transform: translateY(-50%); }
+.peek-unit { transform: translateX(-50%); }
+
+.screen.peek-floor-on .peek-floor,
+.screen.peek-unit-on .peek-unit {
+  opacity: 1;
+  transition: opacity 0.12s;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ── isometric map ─────────────────────────────────────────── */

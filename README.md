@@ -5,7 +5,7 @@ A minimal, mobile-first web app that shows DHBW Mannheim students which lecture 
 - Product concept: [`idea.md`](idea.md)
 - User stories: [`requirements.md`](requirements.md)
 
-> **Status:** proof of concept. Only floor 2 (2. OG) of building B/C is mapped in detail. Every other floor and building shows only the building outline, but its free-room counts are real. The outlines of A, D and E are rough shapes from `campusplan.jpeg`.
+> **Status:** proof of concept. Only building B/C is mapped in detail (floors 0–3). Buildings A, D and E show only a rough outline traced from the campus map, but their floors and room states come from the real data.
 
 ## Getting started
 
@@ -32,8 +32,9 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 - **Simulate a time:** add `?now=<ISO datetime>` to the URL, e.g. `http://localhost:5173/?now=2026-11-18T15:00` (local time). This is meant for demos and testing and is not linked from the UI.
 - **Change the course:** delete the `course` cookie (DevTools → Application → Cookies) and reload.
 - **Reset the default view:** delete `lastView` from Local Storage.
-- **Switch floors:** use the top/bottom arrows, swipe vertically, scroll the mouse wheel, or press ↑ / ↓.
-- **Switch buildings:** use the left/right arrows, swipe horizontally, or press ← / →.
+- **Switch floors:** swipe vertically, scroll the mouse wheel, press ↑ / ↓, or tap a pill of the floor indicator (top right).
+- **Switch buildings:** swipe horizontally, press ← / →, or tap a pill of the building indicator (bottom center).
+- The indicators are invisible at rest and appear as soon as you touch, swipe or scroll.
 
 ## Tech stack
 
@@ -54,9 +55,12 @@ src/
   floorplan.ts        Building units (B/C, A, D, E): footprint, corridors, traced rooms per floor
   render.ts           Isometric SVG renderer and status icons
   style.css           All styles and color tokens
-floor2.jpeg           Source photo used to trace B/C floor 2
-campusplan.jpeg       Campus map (building positions and order)
+floorplan/            Source images (gitignored, local only, see below)
+  floor0–3.jpeg       Photos of the B/C floor plans the rooms are traced from
+  campusplan.jpeg     Campus map (building positions, order and the A/D/E outlines)
 ```
+
+The source images in `floorplan/` are not in the repository. They're only needed to trace or correct room geometry in `src/floorplan.ts`, not to build or run the app.
 
 ## Data sources
 
@@ -107,7 +111,7 @@ The **target time** is the start of the user's next lecture today, or *now + 1 h
 
 The user's own lecture room is always drawn **blue** with a pin above it. Its status icon still shows whether it's free.
 
-The floor arrows count `free` + `soon` rooms.
+A floor counts as worth swiping to if it has at least one `free` or `soon` room, or holds the user's own room.
 
 **Lockable rooms:** the API doesn't provide this, so maintain the list by hand in `LOCKABLE_ROOMS` in `src/availability.ts`.
 
