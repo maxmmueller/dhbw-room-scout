@@ -1,5 +1,13 @@
 import './style.css';
-import { CourseNotFoundError, fetchLectures, fetchRooms, type ApiRoom, type LectureEvent } from './api';
+import {
+  CourseNotFoundError,
+  fetchCourses,
+  fetchLectures,
+  fetchRooms,
+  type ApiRoom,
+  type Course,
+  type LectureEvent,
+} from './api';
 import { buildingLetter, dayContext, isAvailable, isRelevant, roomId, roomStatus, type Status } from './availability';
 import { BUILDINGS } from './floorplan';
 import { ICONS, renderFloor } from './render';
@@ -47,36 +55,147 @@ function now(): Date {
 }
 
 // ── onboarding ────────────────────────────────────────────────────────
-function showOnboarding(error = '') {
+const MAX_SUGGESTIONS = 6;
+const normalizeCourse = (v: string) => v.trim().toUpperCase().replace(/^MA-/, '');
+
+/** Loaded once; on failure the field simply works without suggestions. */
+let courses: Promise<Course[]> | null = null;
+const loadCourses = () => (courses ??= fetchCourses().catch(() => []));
+
+/** Prefix matches first, then matches anywhere in the ID. */
+function suggest(all: Course[], query: string): Course[] {
+  const q = normalizeCourse(query);
+  if (!q) return [];
+  const prefix = all.filter((c) => c.id.startsWith(q));
+  const inner = all.filter((c) => !c.id.startsWith(q) && c.id.includes(q));
+  return [...prefix, ...inner].slice(0, MAX_SUGGESTIONS);
+}
+
+const escapeHtml = (v: string) =>
+  v.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+
+function showOnboarding(error = '', value = '') {
   app.innerHTML = `
     <form class="onboarding" novalidate>
-      <div class="field${error ? ' invalid' : ''}">
-        <input name="course" autocomplete="off" autocapitalize="characters" spellcheck="false"
-          placeholder="e.g. TINF25IT1" aria-label="Course ID" aria-invalid="${!!error}" />
-        <button type="submit" aria-label="Continue">
-          <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5"/></svg>
-        </button>
+      <div class="combo">
+        <div class="field${error ? ' invalid' : ''}">
+          <input name="course" autocomplete="off" autocapitalize="characters" spellcheck="false"
+            placeholder="e.g. TINF25IT1" aria-label="Course ID" aria-invalid="${!!error}"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions" />
+          <button type="submit" aria-label="Continue">
+            <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5"/></svg>
+          </button>
+        </div>
+        <ul class="suggestions" id="suggestions" role="listbox" aria-label="Matching courses" hidden></ul>
       </div>
       <p class="error" role="alert">${error}</p>
     </form>`;
   const form = app.querySelector('form')!;
   const input = form.querySelector('input')!;
+  const list = form.querySelector<HTMLUListElement>('.suggestions')!;
+  input.value = value;
   input.focus();
-  input.addEventListener('input', () => form.querySelector('.field')!.classList.remove('invalid'));
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const course = input.value.trim().toUpperCase().replace(/^MA-/, '');
+
+  let matches: Course[] = [];
+  let active = -1;
+
+  const render = () => {
+    list.hidden = matches.length === 0;
+    list.innerHTML = matches
+      .map(
+        (c, i) => `
+        <li role="option" id="suggestion-${i}" data-index="${i}" aria-selected="${i === active}">
+          <span class="id">${escapeHtml(c.id)}</span><span class="degree">${escapeHtml(c.degree)}</span>
+        </li>`,
+      )
+      .join('');
+    // Show only as many suggestions as fit below the field (max-height in CSS):
+    // drop the lowest-ranked ones instead of making the list scroll.
+    while (matches.length && list.scrollHeight > list.clientHeight) {
+      list.lastElementChild!.remove();
+      matches.pop();
+    }
+    if (active >= matches.length) active = -1;
+    const open = matches.length > 0;
+    list.hidden = !open;
+    input.setAttribute('aria-expanded', String(open));
+    if (active >= 0) input.setAttribute('aria-activedescendant', `suggestion-${active}`);
+    else input.removeAttribute('aria-activedescendant');
+  };
+
+  const close = () => {
+    matches = [];
+    active = -1;
+    render();
+  };
+
+  const update = async () => {
+    const query = input.value;
+    const all = await loadCourses();
+    if (input.value !== query || document.activeElement !== input) return; // stale
+    const next = suggest(all, query);
+    // Hide the list once the input already is exactly the only match.
+    matches = next.length === 1 && next[0].id === normalizeCourse(query) ? [] : next;
+    active = -1;
+    render();
+  };
+
+  const submit = async (raw: string) => {
+    const course = normalizeCourse(raw);
     if (!course) return;
+    close();
+    input.value = course;
     form.classList.add('loading');
     try {
       const events = await fetchLectures(course);
       setCourse(course);
       start(course, events);
     } catch (err) {
-      showOnboarding(err instanceof CourseNotFoundError ? 'Course not found' : 'Connection problem – try again');
-      (app.querySelector('input') as HTMLInputElement).value = course;
+      showOnboarding(err instanceof CourseNotFoundError ? 'Course not found' : 'Connection problem – try again', course);
+    }
+  };
+
+  input.addEventListener('input', () => {
+    form.querySelector('.field')!.classList.remove('invalid');
+    void update();
+  });
+  input.addEventListener('focus', () => void update());
+  // The space below the field changes with the window / on-screen keyboard.
+  const onResize = () => {
+    if (!input.isConnected) return window.removeEventListener('resize', onResize);
+    if (document.activeElement === input) void update();
+  };
+  window.addEventListener('resize', onResize);
+  input.addEventListener('blur', close);
+  input.addEventListener('keydown', (e) => {
+    if (!matches.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      active = (active + step + matches.length + 1) % (matches.length + 1);
+      if (active === matches.length) active = -1; // wrap through "nothing selected"
+      render();
+    } else if (e.key === 'Enter' && active >= 0) {
+      e.preventDefault();
+      void submit(matches[active].id);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
     }
   });
+  // pointerdown + preventDefault keeps focus in the input (no blur → no close).
+  list.addEventListener('pointerdown', (e) => {
+    const li = (e.target as Element).closest<HTMLLIElement>('li[data-index]');
+    if (!li) return;
+    e.preventDefault();
+    void submit(matches[Number(li.dataset.index)].id);
+  });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    void submit(input.value);
+  });
+
+  void loadCourses();
 }
 
 // ── main screen ───────────────────────────────────────────────────────

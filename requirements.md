@@ -41,16 +41,6 @@ So that the app can load my timetable and work out where I am.
 - Input is case-insensitive; a leading `MA-` is accepted and stripped.
 - The course ID is stored in a cookie; on later visits the app opens directly on the floor plan.
 
-#### US02 – Course required to use the app
-
-As the product owner,
-I want the app to be unusable until a valid course ID has been entered,
-So that every view can be based on the user's actual schedule (like delivery apps that ask for a postcode first).
-
-*Acceptance criteria:*
-- Without a stored course, every visit shows the onboarding screen.
-- There is no "skip" or guest mode.
-
 #### US03 – Validate the course
 
 As a user who mistyped their course,
@@ -58,6 +48,12 @@ I want to be told immediately that the course doesn't exist,
 So that I don't end up with an empty or wrong map.
 
 *Acceptance criteria:*
+- While typing, up to 6 matching course IDs are suggested below the text field, loaded once from `https://api.dhbw.app/courses/MA/mapped/extended` (see [US25](#us25--fetch-data-from-the-dhbw-apis)).
+  - Matching is case-insensitive and ignores a leading `MA-`; courses whose ID starts with the input come first, then courses that contain it.
+  - Each suggestion shows the course ID (without `MA-`) and, smaller, its degree name.
+  - A suggestion can be picked by tap/click or with ↑ / ↓ and Enter; picking one validates and submits it immediately. Escape closes the list.
+  - Hidden or invisible courses and malformed IDs (e.g. `MA---TCT26`) are not suggested.
+  - If the course list can't be loaded, the field works as before, just without suggestions.
 - The course is checked against the timetable API before it is saved; an unknown course (HTTP 404) shows a short error ("Course not found") and nothing is stored.
 - A network error shows a separate short message and lets the user try again.
 - If a stored course later turns out to be unknown, it is cleared and the onboarding screen is shown.
@@ -306,9 +302,10 @@ So that availability can be calculated.
 *Data sources:*
 - Timetable: `https://api.dhbw.app/rapla/lectures/MA-<COURSE>/events`. Returns events with `startTime`, `endTime`, `rooms` and `cancelled`.
 - Room occupancy: `https://api.dhbw.dev/rapla/MA/rooms?date=YYYY-MM-DD`. Returns every room with building, `floor`, `floorLevel`, type (`displayName`) and the day's `occupancies` (UTC).
+- Course list (for autocomplete): `https://api.dhbw.app/courses/MA/mapped/extended`. Returns all courses grouped by faculty and degree, each with `name` (e.g. `MA-TINF25IT1`), `degreeName`, `visible` and `hidden`.
 
 *Acceptance criteria:*
-- Neither API sends CORS headers, so requests go through a proxy.
+- None of the APIs send CORS headers, so requests go through a proxy.
 
 #### US26 – Match rooms by room number
 

@@ -64,8 +64,9 @@ campusplan.jpeg       Campus map (building positions and order)
 |---|---|---|
 | Course timetable | `https://api.dhbw.app/rapla/lectures/MA-{COURSE}/events` | `/api/lectures/MA-{COURSE}/events` |
 | Room occupancy for one day | `https://api.dhbw.dev/rapla/MA/rooms?date=YYYY-MM-DD` | `/api/rooms?date=YYYY-MM-DD` |
+| Course list (autocomplete) | `https://api.dhbw.app/courses/MA/mapped/extended` | `/api/courses` |
 
-- **No CORS headers:** neither API sends them, so the browser can't call them directly. `vite.config.ts` proxies `/api/*` for both `dev` and `preview`. A production deployment needs an equivalent reverse proxy (e.g. nginx, a Netlify/Vercel rewrite, or a small edge function).
+- **No CORS headers:** none of the APIs send them, so the browser can't call them directly. `vite.config.ts` proxies `/api/*` for both `dev` and `preview`. A production deployment needs an equivalent reverse proxy (e.g. nginx, a Netlify/Vercel rewrite, or a small edge function).
 - **Times are in UTC:** API times are UTC ISO strings and are compared as `Date` objects. "Today" means the browser's local date.
 - **Unknown course:** the timetable endpoint returns `404`, which the app shows as "Course not found".
 - **Room IDs:** rooms are matched by the first token of the API room name, e.g. `"238B VL-Raum Unterrichtsraum"` → `238B`. Timetable events use the same names.

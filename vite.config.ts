@@ -13,6 +13,11 @@ const proxy: Record<string, ProxyOptions> = {
     changeOrigin: true,
     rewrite: (p) => p.replace(/^\/api\/lectures/, '/rapla/lectures'),
   },
+  '/api/courses': {
+    target: 'https://api.dhbw.app',
+    changeOrigin: true,
+    rewrite: () => '/courses/MA/mapped/extended',
+  },
 };
 
 export default defineConfig({

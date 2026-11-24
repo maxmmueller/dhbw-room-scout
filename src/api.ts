@@ -43,3 +43,37 @@ export async function fetchLectures(course: string): Promise<LectureEvent[]> {
   if (!res.ok) throw new Error(`Timetable request failed (${res.status})`);
   return (await res.json()) as LectureEvent[];
 }
+
+export interface Course {
+  /** Course ID without the `MA-` prefix, e.g. `TINF25IT1`. */
+  id: string;
+  degree: string;
+}
+
+interface ApiCourse {
+  name: string;
+  degreeName: string;
+  visible: boolean;
+  hidden: boolean;
+}
+
+/** All selectable Mannheim courses, sorted by ID. Used for autocomplete only. */
+export async function fetchCourses(): Promise<Course[]> {
+  const res = await fetch('/api/courses');
+  if (!res.ok) throw new Error(`Course list request failed (${res.status})`);
+  // { <faculty>: { size: number, <degree>: ApiCourse[] } }
+  const body = (await res.json()) as Record<string, Record<string, ApiCourse[] | number>>;
+  const byId = new Map<string, Course>();
+  for (const faculty of Object.values(body)) {
+    for (const list of Object.values(faculty)) {
+      if (!Array.isArray(list)) continue;
+      for (const c of list) {
+        const m = /^MA-([A-Z0-9][A-Z0-9_-]*)$/i.exec(c.name);
+        if (!m || !c.visible || c.hidden) continue;
+        const id = m[1].toUpperCase();
+        if (!byId.has(id)) byId.set(id, { id, degree: c.degreeName });
+      }
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+}

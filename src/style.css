@@ -144,6 +144,68 @@ body {
   color: var(--danger);
 }
 
+.combo {
+  position: relative;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  /* Fit into the space below the centered field (its bottom edge sits at
+     50dvh + 14px, the list starts 8px lower) and keep 16px of breathing room,
+     so it never grows the page. main.ts drops suggestions that don't fit. */
+  max-height: calc(50dvh - 38px);
+  overflow: hidden;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgb(29 35 48 / 4%), 0 16px 32px -16px rgb(29 35 48 / 24%);
+  animation: drop-in 0.14s ease-out;
+}
+
+.suggestions[hidden] {
+  display: none;
+}
+
+.suggestions li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.suggestions li:hover,
+.suggestions li[aria-selected='true'] {
+  background: var(--bg);
+}
+
+.suggestions .id {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.suggestions .degree {
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
 @keyframes shake {
   25% { transform: translateX(-6px); }
   75% { transform: translateX(6px); }
