@@ -74,7 +74,9 @@ function suggest(all: Course[], query: string): Course[] {
 const escapeHtml = (v: string) =>
   v.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
-function showOnboarding(error = '', value = '') {
+/** `onCancel` is set when changing course from the menu (US30): it adds a way back to the map. */
+function showOnboarding(error = '', value = '', onCancel?: () => void) {
+  session?.stop();
   app.innerHTML = `
     <form class="onboarding" novalidate>
       <div class="combo">
@@ -89,6 +91,7 @@ function showOnboarding(error = '', value = '') {
         <ul class="suggestions" id="suggestions" role="listbox" aria-label="Matching courses" hidden></ul>
       </div>
       <p class="error" role="alert">${error}</p>
+      ${onCancel ? '<button type="button" class="cancel">Cancel</button>' : ''}
     </form>`;
   const form = app.querySelector('form')!;
   const input = form.querySelector('input')!;
@@ -151,7 +154,11 @@ function showOnboarding(error = '', value = '') {
       setCourse(course);
       start(course, events);
     } catch (err) {
-      showOnboarding(err instanceof CourseNotFoundError ? 'Course not found' : 'Connection problem – try again', course);
+      showOnboarding(
+        err instanceof CourseNotFoundError ? 'Course not found' : 'Connection problem – try again',
+        course,
+        onCancel,
+      );
     }
   };
 
@@ -168,7 +175,10 @@ function showOnboarding(error = '', value = '') {
   window.addEventListener('resize', onResize);
   input.addEventListener('blur', close);
   input.addEventListener('keydown', (e) => {
-    if (!matches.length) return;
+    if (!matches.length) {
+      if (e.key === 'Escape' && onCancel) onCancel();
+      return;
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const step = e.key === 'ArrowDown' ? 1 : -1;
@@ -190,6 +200,7 @@ function showOnboarding(error = '', value = '') {
     e.preventDefault();
     void submit(matches[Number(li.dataset.index)].id);
   });
+  form.querySelector('.cancel')?.addEventListener('click', () => onCancel?.());
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void submit(input.value);
@@ -216,6 +227,9 @@ interface State {
   rooms: ApiRoom[];
   /** null until the default view has been resolved on first render. */
   view: View | null;
+  menuOpen: boolean;
+  /** A manual refresh from the menu is in flight. */
+  refreshing: boolean;
 }
 
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -289,6 +303,32 @@ function buildingButton(dir: 'left' | 'right', unit: number) {
 }
 
 const nav: Record<Direction, () => void> = { up() {}, down() {}, left() {}, right() {} };
+const noop = () => {};
+
+const MENU_ICONS = {
+  dots: '<circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>',
+  course: '<path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5M20 16H7M10.5 12.5 7 16l3.5 3.5"/>',
+  own: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>',
+  refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/>',
+};
+const menuIcon = (name: keyof typeof MENU_ICONS) => `<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[name]}</svg>`;
+
+function menu(state: State, hasOwn: boolean) {
+  const button = `
+    <button class="menu-btn${state.refreshing ? ' busy' : ''}" aria-label="Menu" aria-haspopup="menu"
+      aria-expanded="${state.menuOpen}" aria-controls="menu">${menuIcon('dots')}</button>`;
+  if (!state.menuOpen) return button;
+  const item = (action: string, icon: keyof typeof MENU_ICONS, label: string) =>
+    `<button role="menuitem" data-action="${action}">${menuIcon(icon)}${label}</button>`;
+  return `${button}
+    <div class="menu-backdrop"></div>
+    <div class="menu" id="menu" role="menu" aria-label="Menu">
+      <div class="menu-course" role="presentation"><span>Course</span><strong>${escapeHtml(state.course)}</strong></div>
+      ${item('course', 'course', 'Change course')}
+      ${hasOwn ? item('own', 'own', 'Go to my room') : ''}
+      ${item('refresh', 'refresh', 'Refresh')}
+    </div>`;
+}
 
 function render(state: State, direction: Direction | null = null) {
   const { location, statuses, floors, own } = compute(state);
@@ -312,7 +352,6 @@ function render(state: State, direction: Direction | null = null) {
     footprint: f?.footprint ?? b.footprint,
     corridors: f?.corridors ?? b.corridors,
     restricted: f?.restricted ?? [],
-    bridges: f?.bridges ?? [],
     rooms: f?.rooms ?? null,
   };
 
@@ -327,6 +366,7 @@ function render(state: State, direction: Direction | null = null) {
       </main>
       ${buildingButton('right', unit + 1)}
       ${floorButton('down', below)}
+      ${menu(state, own !== null)}
     </div>`;
 
   const go = (next: View, dir: Direction) => {
@@ -336,6 +376,13 @@ function render(state: State, direction: Direction | null = null) {
   };
   const toUnit = (u: number, dir: Direction) =>
     BUILDINGS[u] && go({ unit: u, level: closestLevel(floors[u], level) }, dir);
+
+  bindMenu(state, own);
+  if (state.menuOpen) {
+    // The menu is modal: no floor/building changes behind it.
+    nav.up = nav.down = nav.left = nav.right = noop;
+    return;
+  }
 
   nav.up = () => above && isUseful(above) && go({ unit, level: above.level }, 'up');
   nav.down = () => below && isUseful(below) && go({ unit, level: below.level }, 'down');
@@ -348,18 +395,74 @@ function render(state: State, direction: Direction | null = null) {
   app.querySelector('button.bldg-nav.right')?.addEventListener('click', nav.right);
 }
 
-function bindGestures() {
-  let start: { x: number; y: number } | null = null;
-  app.addEventListener('pointerdown', (e) => (start = { x: e.clientX, y: e.clientY }));
-  app.addEventListener('pointerup', (e) => {
-    if (!start) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    start = null;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 60) return;
-    if (Math.abs(dy) >= Math.abs(dx)) (dy > 0 ? nav.up : nav.down)(); // pull down → floor above
-    else (dx > 0 ? nav.left : nav.right)(); // pull right → building on the left
+function bindMenu(state: State, own: View | null) {
+  const button = app.querySelector<HTMLButtonElement>('.menu-btn')!;
+  const setOpen = (open: boolean, focusButton = true) => {
+    state.menuOpen = open;
+    render(state);
+    if (open) app.querySelector<HTMLElement>('.menu [role="menuitem"]')?.focus();
+    else if (focusButton) app.querySelector<HTMLElement>('.menu-btn')?.focus();
+  };
+  button.addEventListener('click', () => setOpen(!state.menuOpen));
+  if (!state.menuOpen) return;
+
+  const menuEl = app.querySelector<HTMLElement>('.menu')!;
+  const items = [...menuEl.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+  app.querySelector('.menu-backdrop')!.addEventListener('click', () => setOpen(false, false));
+  menuEl.addEventListener('keydown', (e) => {
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      e.preventDefault();
+      setOpen(false);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      items[e.key === 'Home' ? 0 : items.length - 1].focus();
+    }
   });
+
+  const actions: Record<string, () => void> = {
+    course: () => {
+      state.menuOpen = false;
+      showOnboarding('', '', () => run(state));
+    },
+    own: () => {
+      if (own) {
+        state.view = own;
+        saveLastView(own);
+      }
+      setOpen(false);
+    },
+    refresh: () => {
+      state.refreshing = true;
+      setOpen(false);
+      void refetch(state).finally(() => {
+        state.refreshing = false;
+        if (active === state) render(state);
+      });
+    },
+  };
+  for (const el of items) el.addEventListener('click', () => actions[el.dataset.action!]());
+}
+
+function bindGestures(signal: AbortSignal) {
+  let start: { x: number; y: number } | null = null;
+  app.addEventListener('pointerdown', (e) => (start = { x: e.clientX, y: e.clientY }), { signal });
+  app.addEventListener(
+    'pointerup',
+    (e) => {
+      if (!start) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      start = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 60) return;
+      if (Math.abs(dy) >= Math.abs(dx)) (dy > 0 ? nav.up : nav.down)(); // pull down → floor above
+      else (dx > 0 ? nav.left : nav.right)(); // pull right → building on the left
+    },
+    { signal },
+  );
   let wheelLock = 0;
   app.addEventListener(
     'wheel',
@@ -368,30 +471,60 @@ function bindGestures() {
       wheelLock = Date.now() + 500;
       (e.deltaY < 0 ? nav.up : nav.down)();
     },
-    { passive: true },
+    { passive: true, signal },
   );
-  window.addEventListener('keydown', (e) => {
-    const key: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
-    if (key[e.key]) nav[key[e.key]]();
-  });
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      const key: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+      if (key[e.key]) nav[key[e.key]]();
+    },
+    { signal },
+  );
+}
+
+// ── lifecycle ─────────────────────────────────────────────────────────
+/** The state shown on the main screen; null while onboarding/loading. */
+let active: State | null = null;
+/** Stops the timers and input listeners of the main screen. */
+let session: { stop(): void } | null = null;
+
+async function refetch(state: State) {
+  try {
+    [state.events, state.rooms] = await Promise.all([fetchLectures(state.course), fetchRooms(now())]);
+  } catch {
+    /* keep showing the last known data */
+  }
+}
+
+/** Shows the main screen for `state` and keeps it up to date. */
+function run(state: State) {
+  session?.stop();
+  const ac = new AbortController();
+  bindGestures(ac.signal);
+  // While the menu is open, skip re-renders (they would close it); closing re-renders.
+  const update = () => active === state && !state.menuOpen && render(state);
+  const tick = setInterval(update, REFRESH_MS);
+  const fetchTimer = setInterval(() => void refetch(state).then(update), REFETCH_MS);
+  active = state;
+  session = {
+    stop() {
+      clearInterval(tick);
+      clearInterval(fetchTimer);
+      ac.abort();
+      active = null;
+      session = null;
+    },
+  };
+  render(state);
 }
 
 async function start(course: string, events?: LectureEvent[]) {
+  session?.stop();
   app.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
   try {
     const [ev, rooms] = await Promise.all([events ?? fetchLectures(course), fetchRooms(now())]);
-    const state: State = { course, events: ev, rooms, view: null };
-    render(state);
-    bindGestures();
-    setInterval(() => render(state), REFRESH_MS);
-    setInterval(async () => {
-      try {
-        [state.events, state.rooms] = await Promise.all([fetchLectures(course), fetchRooms(now())]);
-        render(state);
-      } catch {
-        /* keep showing the last known data */
-      }
-    }, REFETCH_MS);
+    run({ course, events: ev, rooms, view: null, menuOpen: false, refreshing: false });
   } catch (err) {
     if (err instanceof CourseNotFoundError) {
       clearCourse();

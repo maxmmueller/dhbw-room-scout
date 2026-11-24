@@ -147,6 +147,21 @@ So that I don't have to navigate first.
 - Otherwise (lecture-free day, no lecture today): open on the last building/floor viewed on this device.
 - If nothing was viewed yet: open on **B/C, ground floor (EG)**.
 
+#### US30 – Menu for less frequent actions
+
+As a student,
+I want a small menu that holds actions I don't need all the time,
+So that I can, for example, switch to another course without clearing my cookies, while the map stays uncluttered.
+
+*Acceptance criteria:*
+- A single, unobtrusive menu button (⋯) sits in the top-right corner of the main screen; the menu opens as a small popover from it.
+- The menu shows the current course ID and these actions:
+  - **Change course:** opens the course input (with autocomplete, see [US03](#us03--validate-the-course)). The new course is validated before it replaces the old one; *Cancel* (or Escape) returns to the map with the old course unchanged.
+  - **Go to my room:** jumps to the building unit and floor of the own room. Only shown if an own room is known.
+  - **Refresh:** fetches the timetable and room data again right away.
+- The menu closes on picking an action, tapping outside it, or pressing Escape. While it is open, swipes and arrow keys don't change the floor or building.
+- It is fully usable with keyboard and screen reader (menu button with `aria-expanded`, items as menu items, focus moves into the menu and back).
+
 ---
 
 ### 4. User Location
@@ -260,7 +275,7 @@ So that I can find a room within seconds without distractions.
 
 *Acceptance criteria:*
 - No lists, filters, settings, legends, info texts, times (e.g. no "free until") or recommendations.
-- The only UI elements besides the map are the floor and building arrows and the position label.
+- The only UI elements besides the map are the floor and building arrows, the position label and the menu button (see [US30](#us30--menu-for-less-frequent-actions)).
 
 #### US22 – Single color scheme
 
@@ -288,6 +303,30 @@ So that I can use it on the go, and still use it on my laptop.
 - Touch gestures (swipe) on mobile; buttons, mouse wheel and arrow keys on desktop.
 - The app is a plain web app (no PWA / install).
 - The UI language is English.
+
+#### US28 – Usable with the on-screen keyboard open
+
+As a student entering my course on my phone,
+I want every part of the onboarding screen to stay visible and reachable while the on-screen keyboard is open,
+So that I can see what I type, the suggestions and any error message without closing the keyboard.
+
+*Acceptance criteria:*
+- When the keyboard opens, the text field moves up so that it, its submit button, the error message and at least the first course suggestions sit in the visible area above the keyboard.
+- Nothing is hidden behind the keyboard or the browser's toolbars, and the page doesn't need to be scrolled to reach any element.
+- Works in Safari on iOS and Chrome on Android, in portrait and landscape.
+- When the keyboard closes, the layout returns to its normal, centered state without jumping.
+
+#### US29 – App logo
+
+As a student,
+I want the app to have its own recognisable logo,
+So that I can find it quickly among my browser tabs and bookmarks and it feels like a real product.
+
+*Acceptance criteria:*
+- The logo is a simple, original mark that fits the app's color scheme and still reads at 16 × 16 px.
+- It is used as the favicon (including an `apple-touch-icon` for the home screen bookmark on iOS).
+- It is shown on the onboarding (start) screen above the course field, and on the loading screen.
+- It doesn't take space away from the map on the main screen.
 
 ---
 
@@ -338,7 +377,6 @@ These were part of earlier drafts and are deliberately **not** planned for now:
 - Breadcrumb navigation
 - Recommendation card / "best room" logic
 - "Free until" times and "last updated" indicator
-- Changing or resetting the course in the UI (only by clearing cookies, for now)
 - Using the app without a course
 - PWA / installable app
 - Opening hours of the buildings
