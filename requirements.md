@@ -36,7 +36,7 @@ I want to be asked once for my course ID in a single text field,
 So that the app can load my timetable and work out where I am.
 
 *Acceptance criteria:*
-- The onboarding screen shows only the text field (with a submit control inside it); there are no other controls or texts.
+- The onboarding screen shows only the app logo (see [US29](#us29--app-logo)) and the text field (with a submit control inside it); there are no other controls or texts.
 - The placeholder shows an example (`e.g. TINF25IT1`) so the expected format is clear.
 - Input is case-insensitive; a leading `MA-` is accepted and stripped.
 - The course ID is stored in a cookie; on later visits the app opens directly on the floor plan.
@@ -329,10 +329,12 @@ I want the app to have its own recognisable logo,
 So that I can find it quickly among my browser tabs and bookmarks and it feels like a real product.
 
 *Acceptance criteria:*
-- The logo is a simple, original mark that fits the app's color scheme and still reads at 16 × 16 px.
-- It is used as the favicon (including an `apple-touch-icon` for the home screen bookmark on iOS).
-- It is shown on the onboarding (start) screen above the course field, and on the loading screen.
-- It doesn't take space away from the map on the main screen.
+- The logo is a symbol (two nested isometric diamonds) with the wordmark **ROOM**SCOUT; source files are in `logo/`.
+- In the app it uses the app's ink color with red as the accent (red: inner diamond and "ROOM").
+- The wordmark is converted to outlines (from the free font Nunito Sans), so the logo looks the same on every device and no web font is loaded for it.
+- **Start page:** symbol and wordmark stacked, centered above the course field.
+- **Main page:** symbol and wordmark side by side at the top of the menu (see [US30](#us30--menu-for-less-frequent-actions)); the map screen itself shows no logo.
+- The symbol is the favicon (`public/favicon.svg`) with slightly thicker lines, so it still reads in a browser tab; in a dark browser UI its outer lines turn light. iOS home-screen bookmarks (and Safari) use `public/apple-touch-icon.png` (180 × 180 px, app background).
 
 ---
 

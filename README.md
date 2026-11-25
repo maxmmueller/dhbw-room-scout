@@ -54,7 +54,11 @@ src/
   availability.ts     Room filter, user location, status rules, lockable rooms
   floorplan.ts        Building units (B/C, A, D, E): footprint, corridors, traced rooms per floor
   render.ts           Isometric SVG renderer and status icons
+  logo.ts             The logo as inline SVG (start page, menu)
   style.css           All styles and color tokens
+public/               favicon.svg and apple-touch-icon.png (copied as-is into the build)
+logo/                 Logo source files: symbol, wordmark, stacked and horizontal
+                      versions (`*-outlined.svg`: wordmark as paths, no font needed)
 floorplan/            Source images (gitignored, local only, see below)
   floor0–3.jpeg       Photos of the B/C floor plans the rooms are traced from
   campusplan.jpeg     Campus map (building positions, order and the A/D/E outlines)

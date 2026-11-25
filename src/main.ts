@@ -10,6 +10,7 @@ import {
 } from './api';
 import { buildingLetter, dayContext, isAvailable, isRelevant, roomId, roomStatus, type Status } from './availability';
 import { BUILDINGS } from './floorplan';
+import { LOGO_HORIZONTAL, LOGO_STACKED } from './logo';
 import { renderFloor } from './render';
 
 const app = document.getElementById('app')!;
@@ -79,6 +80,7 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
   session?.stop();
   app.innerHTML = `
     <form class="onboarding" novalidate>
+      <h1 class="start-logo">${LOGO_STACKED}</h1>
       <div class="combo">
         <div class="field${error ? ' invalid' : ''}">
           <input name="course" autocomplete="off" autocapitalize="characters" spellcheck="false"
@@ -309,6 +311,7 @@ function menu(state: State, hasOwn: boolean) {
   return `${button}
     <div class="menu-backdrop"></div>
     <div class="menu" id="menu" role="menu" aria-label="Menu">
+      <div class="menu-logo" role="presentation">${LOGO_HORIZONTAL}</div>
       <div class="menu-course" role="presentation"><span>Course</span><strong>${escapeHtml(state.course)}</strong></div>
       ${item('course', 'course', 'Change course')}
       ${hasOwn ? item('own', 'own', 'Go to my room') : ''}

@@ -24,6 +24,7 @@
   --here-s: #1b4795;
 
   --danger: #c2412d;
+  --brand-red: #e2001a; /* logo only */
   --radius: 16px;
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
@@ -49,6 +50,37 @@ body {
   touch-action: none;
   user-select: none;
 }
+
+/* ── logo (US29) ────────────────────────────────────────────── */
+.logo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logo svg {
+  display: block;
+  height: auto;
+}
+
+/* Start page: narrow symbol, wider wordmark, widest field below – a
+   triangle. The symbol is always smaller than the wordmark. */
+.logo-stacked {
+  flex-direction: column;
+  gap: 18px;
+}
+
+.logo-stacked .logo-symbol { width: 104px; }
+.logo-stacked .logo-wordmark { width: 168px; }
+
+/* Menu header */
+.logo-horizontal { gap: 9px; }
+.logo-horizontal .logo-symbol { width: 26px; }
+.logo-horizontal .logo-wordmark { width: 92px; }
+
+.logo-accent { fill: var(--brand-red); }
+.logo-ink { fill: var(--ink); }
+.logo-accent-stroke { stroke: var(--brand-red); }
+.logo-ink-stroke { stroke: var(--ink); }
 
 /* ── onboarding ─────────────────────────────────────────────── */
 .onboarding {
@@ -138,6 +170,11 @@ body {
   font-size: 14px;
   font-weight: 500;
   color: var(--danger);
+}
+
+.start-logo {
+  justify-self: center;
+  margin: 0 0 34px;
 }
 
 .combo {
@@ -483,6 +520,10 @@ body {
 }
 
 /* ── menu (US30) ───────────────────────────────────────────── */
+.menu-logo {
+  padding: 10px 12px 4px;
+}
+
 .menu-btn {
   position: absolute;
   z-index: 3;

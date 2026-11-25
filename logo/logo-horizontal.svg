@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 440" width="1680" height="440">
+  <g transform="translate(295.00, 220.00) scale(0.5400)">
+    <path d="M -277.20 65.96 L -420.00 0.00 L 0.00 -194.00 L 420.00 0.00 L 0.00 194.00 L -142.80 128.04" fill="none" stroke="#5C6971" stroke-width="54" stroke-linejoin="round" stroke-linecap="round"/>
+    <polygon points="0.0,-103.00 224.00,0.0 0.0,103.00 -224.00,0.0" fill="none" stroke="#E2001A" stroke-width="52" stroke-linejoin="round"/>
+  </g>
+  <text x="595" y="265" text-anchor="start" font-family="'Avenir', sans-serif" font-size="126" letter-spacing="4"><tspan fill="#E2001A" font-weight="800">ROOM</tspan><tspan fill="#5C6971" font-weight="300">SCOUT</tspan></text>
+</svg>
