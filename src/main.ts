@@ -373,53 +373,63 @@ function syncPills(row: HTMLElement, attr: 'floor' | 'unit', pills: PillState[])
 
 // ── indicator visibility ──────────────────────────────────────────────
 const AWAKE_MS = 1600;
-const PEEK_MS = 1100;
 let awakeTimer = 0;
-let peekTimer = 0;
 
-/** Shows the pills on any interaction; they fade out after a moment without. */
+/**
+ * Shows the pills on any interaction; they fade out after a moment without.
+ * Pop-up names (see `peek`) fade out together with them.
+ */
 function wake(ms = AWAKE_MS) {
   const screen = app.querySelector('.screen');
   if (!screen) return;
   screen.classList.add('awake');
   clearTimeout(awakeTimer);
-  awakeTimer = window.setTimeout(() => screen.classList.remove('awake'), ms);
+  awakeTimer = window.setTimeout(() => screen.classList.remove('awake', 'peek-floor-on', 'peek-unit-on'), ms);
 }
 
-/** Puts the pop-up labels next to the active pills. */
-function placePeeks() {
+/**
+ * Puts the pop-up label of each given row next to its active pill, at the
+ * pill's final size: the row's grow animation is switched off just for the
+ * measurement (no paint happens in between), so the label doesn't jump while
+ * the pill grows. Only rows that just changed may be passed – switching the
+ * animation back on replays it.
+ */
+function placePeeks(rows: ('floor' | 'unit')[]) {
   const screen = app.querySelector<HTMLElement>('.screen');
-  const fOn = screen?.querySelector('.floors .on');
-  const uOn = screen?.querySelector('.units .on');
-  if (!screen || !fOn || !uOn) return;
+  if (!screen) return;
   const box = screen.getBoundingClientRect();
-  const f = fOn.getBoundingClientRect();
-  const u = uOn.getBoundingClientRect();
-  const peekFloor = screen.querySelector<HTMLElement>('.peek-floor')!;
-  const peekUnit = screen.querySelector<HTMLElement>('.peek-unit')!;
-  peekFloor.style.top = `${f.top + f.height / 2 - box.top}px`;
-  peekFloor.style.right = `${box.right - f.left + 6}px`;
-  peekUnit.style.left = `${u.left + u.width / 2 - box.left}px`;
-  peekUnit.style.bottom = `${box.bottom - u.top + 6}px`;
+  for (const row of rows) {
+    const pills = screen.querySelector<HTMLElement>(row === 'floor' ? '.pills.floors' : '.pills.units');
+    const on = pills?.querySelector('.on');
+    if (!pills || !on) continue;
+    pills.classList.add('measuring');
+    const r = on.getBoundingClientRect();
+    pills.classList.remove('measuring');
+    const label = screen.querySelector<HTMLElement>(row === 'floor' ? '.peek-floor' : '.peek-unit')!;
+    if (row === 'floor') {
+      label.style.top = `${r.top + r.height / 2 - box.top}px`;
+      label.style.right = `${box.right - r.left + 6}px`;
+    } else {
+      label.style.left = `${r.left + r.width / 2 - box.left}px`;
+      label.style.bottom = `${box.bottom - r.top + 6}px`;
+    }
+  }
 }
 
-/** Briefly shows the name of the floor and/or building next to its pill. */
-function peek(which: 'floor' | 'unit' | 'both', ms = PEEK_MS) {
+/** Shows the name of the floor and/or building next to its pill until the pills fade (see `wake`). */
+function peek(which: 'floor' | 'unit' | 'both') {
   const screen = app.querySelector('.screen');
   if (!screen) return;
-  placePeeks();
-  window.setTimeout(placePeeks, 300); // again once the active pill has grown
+  placePeeks(which === 'both' ? ['floor', 'unit'] : [which]);
   screen.classList.remove('peek-floor-on', 'peek-unit-on');
   if (which !== 'unit') screen.classList.add('peek-floor-on');
   if (which !== 'floor') screen.classList.add('peek-unit-on');
-  clearTimeout(peekTimer);
-  peekTimer = window.setTimeout(() => screen.classList.remove('peek-floor-on', 'peek-unit-on'), ms);
 }
 
 /** On app start: show pills and labels for a moment, so people learn they exist. */
 function intro() {
   wake(2600);
-  peek('both', 2600);
+  peek('both');
 }
 
 const NUDGE: Record<Direction, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
@@ -557,12 +567,19 @@ function bindMenu(state: State, own: View | null) {
       showOnboarding('', '', () => run(state));
     },
     own: () => {
+      const prev = state.view;
       if (own) {
         state.view = own;
         saveLastView(own);
       }
       setOpen(false);
-      peek('both');
+      // Pop up only what changed (re-peeking an unchanged row replays its animation).
+      const unitChanged = !!own && prev?.unit !== own.unit;
+      const floorChanged = !!own && prev?.level !== own.level;
+      if (unitChanged || floorChanged) {
+        wake();
+        peek(unitChanged && floorChanged ? 'both' : unitChanged ? 'unit' : 'floor');
+      }
     },
     refresh: () => {
       state.refreshing = true;

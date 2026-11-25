@@ -374,6 +374,9 @@ body {
   animation: grow-h 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Lets placePeeks() measure the pills at their final size. */
+.pills.measuring .pill.on::before { animation: none; }
+
 @keyframes grow-v { from { height: 7px; } }
 @keyframes grow-h { from { width: 7px; } }
 
@@ -391,7 +394,7 @@ body {
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.35s;
+  transition: opacity 0.6s; /* same fade as the pills */
 }
 
 .peek-floor { transform: translateY(-50%); }
