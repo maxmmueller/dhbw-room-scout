@@ -32,8 +32,8 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 - **Simulate a time:** add `?now=<ISO datetime>` to the URL, e.g. `http://localhost:5173/?now=2026-11-18T15:00` (local time). This is meant for demos and testing and is not linked from the UI.
 - **Change the course:** delete the `course` cookie (DevTools → Application → Cookies) and reload.
 - **Reset the default view:** delete `lastView` from Local Storage.
-- **Switch floors:** swipe vertically, scroll the mouse wheel, press ↑ / ↓, or tap a pill of the floor indicator (top right).
-- **Switch buildings:** swipe horizontally, press ← / →, or tap a pill of the building indicator (bottom center).
+- **Switch floors:** swipe vertically, scroll the mouse wheel, press ↑ / ↓, or tap a dot of the floor indicator (top right).
+- **Switch buildings:** swipe horizontally, press ← / →, or tap a dot of the building indicator (bottom center).
 - The indicators are invisible at rest and appear as soon as you touch, swipe or scroll.
 
 ## Tech stack

@@ -338,9 +338,10 @@ body {
 }
 
 /* ── page indicators (US07, US09, US10) ─────────────────────── */
-/* Pills: one per floor (top right, under the menu; ground floor at the
-   bottom) and one per building unit (bottom center). Invisible at rest,
-   shown while the user interacts and for a moment after. */
+/* Dots: one per floor (top right, under the menu; ground floor at the
+   bottom) and one per building unit (bottom center); the current one is
+   dark. Invisible at rest, shown while the user interacts and for a moment
+   after. */
 .pills {
   position: absolute;
   z-index: 1;
@@ -395,48 +396,8 @@ body {
   border-radius: 99px;
 }
 
-.floors .pill.on::before {
-  height: 24px;
+.pill.on::before {
   background: var(--ink);
-  animation: grow-v 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.units .pill.on::before {
-  width: 24px;
-  background: var(--ink);
-  animation: grow-h 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-/* Lets placePeeks() measure the pills at their final size. */
-.pills.measuring .pill.on::before { animation: none; }
-
-@keyframes grow-v { from { height: 7px; } }
-@keyframes grow-h { from { width: 7px; } }
-
-/* Name of the floor / building, popping up next to its pill after a change. */
-.peek {
-  position: absolute;
-  z-index: 2;
-  padding: 5px 9px;
-  border-radius: 9px;
-  background: var(--ink);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.6s; /* same fade as the pills */
-}
-
-.peek-floor { transform: translateY(-50%); }
-.peek-unit { transform: translateX(-50%); }
-
-.screen.peek-floor-on .peek-floor,
-.screen.peek-unit-on .peek-unit {
-  opacity: 1;
-  transition: opacity 0.12s;
 }
 
 .sr-only {

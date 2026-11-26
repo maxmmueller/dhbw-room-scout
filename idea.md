@@ -31,9 +31,9 @@ The user's location is taken from their timetable:
 
 ## Main Screen
 - An **isometric floor plan**, showing **one floor of one building at a time**.
-- **Switching floors:** vertical swipes, or tapping a pill of the floor indicator (a column of small pills in the top-right corner, like the photo dots of an Instagram post). Swipes skip floors where nothing is free.
-- **Switching buildings:** horizontal swipes, or tapping a pill of the building indicator (a row of pills at the bottom). The buildings follow the campus map (`floorplan/campusplan.jpeg`) in the order **B/C → A → D → E**, where B and C form one connected ring. After switching, the app shows the same floor level if the new building has it, otherwise the closest one.
-- **Indicators only while navigating:** both indicators are invisible at rest and appear while the user touches, swipes or scrolls. After a change, the new floor or building name pops up next to its pill for a moment. Swiping past the last floor or building makes the map bounce. When the app opens, the indicators and names show briefly so users learn they exist.
+- **Switching floors:** vertical swipes, or tapping a dot of the floor indicator (a column of small dots in the top-right corner, like the photo dots of an Instagram post). Swipes skip floors where nothing is free.
+- **Switching buildings:** horizontal swipes, or tapping a dot of the building indicator (a row of dots at the bottom). The buildings follow the campus map (`floorplan/campusplan.jpeg`) in the order **B/C → A → D → E**, where B and C form one connected ring. After switching, the app shows the same floor level if the new building has it, otherwise the closest one.
+- **Indicators only while navigating:** both indicators are invisible at rest and appear while the user touches, swipes or scrolls. The current dot is dark; the building and floor are always named in a small title in the top-left corner. Swiping past the last floor or building makes the map bounce. When the app opens, the indicators show briefly so users learn they exist.
 - **Default view:** the building and floor of the user's own room. Without one, the last viewed building and floor on this device. If nothing has been viewed yet, the ground floor (EG) of B/C.
 - **User's room:** always drawn **blue**, whatever its status, and even if it isn't a usable room type (e.g. an EDV room). Its status icon is still shown.
 

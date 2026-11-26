@@ -328,8 +328,6 @@ function mountScreen() {
       <header class="place" aria-hidden="true"><span class="place-unit"></span><span class="place-floor"></span></header>
       <nav class="pills floors" aria-label="Floors"></nav>
       <nav class="pills units" aria-label="Buildings"></nav>
-      <span class="peek peek-floor" aria-hidden="true"></span>
-      <span class="peek peek-unit" aria-hidden="true"></span>
       <p class="sr-only" aria-live="polite"></p>
       <div class="menu-layer"></div>
     </div>`;
@@ -348,9 +346,8 @@ interface PillState {
 }
 
 /**
- * Updates a pill row in place: pills are added/removed only at the end and
- * classes change only where the state changed, so the active pill's "grow"
- * animation plays only on the row that actually changed.
+ * Updates a row of indicator dots in place: dots are added/removed only at
+ * the end and classes change only where the state changed.
  */
 function syncPills(row: HTMLElement, attr: 'floor' | 'unit', pills: PillState[]) {
   while (row.children.length > pills.length) row.lastElementChild!.remove();
@@ -372,61 +369,18 @@ function syncPills(row: HTMLElement, attr: 'floor' | 'unit', pills: PillState[])
 const AWAKE_MS = 1600;
 let awakeTimer = 0;
 
-/**
- * Shows the pills on any interaction; they fade out after a moment without.
- * Pop-up names (see `peek`) fade out together with them.
- */
+/** Shows the indicator dots on any interaction; they fade out after a moment without. */
 function wake(ms = AWAKE_MS) {
   const screen = app.querySelector('.screen');
   if (!screen) return;
   screen.classList.add('awake');
   clearTimeout(awakeTimer);
-  awakeTimer = window.setTimeout(() => screen.classList.remove('awake', 'peek-floor-on', 'peek-unit-on'), ms);
+  awakeTimer = window.setTimeout(() => screen.classList.remove('awake'), ms);
 }
 
-/**
- * Puts the pop-up label of each given row next to its active pill, at the
- * pill's final size: the row's grow animation is switched off just for the
- * measurement (no paint happens in between), so the label doesn't jump while
- * the pill grows. Only rows that just changed may be passed – switching the
- * animation back on replays it.
- */
-function placePeeks(rows: ('floor' | 'unit')[]) {
-  const screen = app.querySelector<HTMLElement>('.screen');
-  if (!screen) return;
-  const box = screen.getBoundingClientRect();
-  for (const row of rows) {
-    const pills = screen.querySelector<HTMLElement>(row === 'floor' ? '.pills.floors' : '.pills.units');
-    const on = pills?.querySelector('.on');
-    if (!pills || !on) continue;
-    pills.classList.add('measuring');
-    const r = on.getBoundingClientRect();
-    pills.classList.remove('measuring');
-    const label = screen.querySelector<HTMLElement>(row === 'floor' ? '.peek-floor' : '.peek-unit')!;
-    if (row === 'floor') {
-      label.style.top = `${r.top + r.height / 2 - box.top}px`;
-      label.style.right = `${box.right - r.left + 6}px`;
-    } else {
-      label.style.left = `${r.left + r.width / 2 - box.left}px`;
-      label.style.bottom = `${box.bottom - r.top + 6}px`;
-    }
-  }
-}
-
-/** Shows the name of the floor and/or building next to its pill until the pills fade (see `wake`). */
-function peek(which: 'floor' | 'unit' | 'both') {
-  const screen = app.querySelector('.screen');
-  if (!screen) return;
-  placePeeks(which === 'both' ? ['floor', 'unit'] : [which]);
-  screen.classList.remove('peek-floor-on', 'peek-unit-on');
-  if (which !== 'unit') screen.classList.add('peek-floor-on');
-  if (which !== 'floor') screen.classList.add('peek-unit-on');
-}
-
-/** On app start: show pills and labels for a moment, so people learn they exist. */
+/** On app start: show the dots for a moment, so people learn they exist. */
 function intro() {
   wake(2600);
-  peek('both');
 }
 
 const NUDGE: Record<Direction, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
@@ -496,8 +450,6 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
     BUILDINGS.map((bu, i) => ({ label: `Building ${bu.label}`, active: i === unit })),
   );
   const position = `${b.label} · ${current?.name ?? ''}`;
-  app.querySelector('.peek-floor')!.textContent = current?.name ?? '';
-  app.querySelector('.peek-unit')!.textContent = b.label;
   app.querySelector('.place-unit')!.textContent = `Building ${b.label}`;
   app.querySelector('.place-floor')!.textContent = floorTitle(level);
   const live = app.querySelector('.sr-only')!;
@@ -506,10 +458,7 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
   app.querySelector('.menu-layer')!.innerHTML = menu(state, own !== null);
   bindMenu(state, own);
 
-  if (changed) {
-    wake();
-    peek(changed);
-  }
+  if (changed) wake();
 
   const go = (next: View, dir: Direction, what: 'floor' | 'unit') => {
     state.view = next;
@@ -580,13 +529,7 @@ function bindMenu(state: State, own: View | null) {
         saveLastView(own);
       }
       setOpen(false);
-      // Pop up only what changed (re-peeking an unchanged row replays its animation).
-      const unitChanged = !!own && prev?.unit !== own.unit;
-      const floorChanged = !!own && prev?.level !== own.level;
-      if (unitChanged || floorChanged) {
-        wake();
-        peek(unitChanged && floorChanged ? 'both' : unitChanged ? 'unit' : 'floor');
-      }
+      if (own && (prev?.unit !== own.unit || prev?.level !== own.level)) wake();
     },
   };
   for (const el of items) el.addEventListener('click', () => actions[el.dataset.action!]());
