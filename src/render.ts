@@ -114,5 +114,24 @@ export function renderFloor(
   const pad = 30;
   const vb = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
 
-  return `<svg class="map" viewBox="${vb.map((v) => v.toFixed(0)).join(' ')}" role="img" aria-label="Floor plan"><defs>${ICONS}${HATCH}</defs>${svg}</svg>`;
+  return `<svg class="map" viewBox="${vb.map((v) => v.toFixed(0)).join(' ')}" role="img" aria-label="${describe(rooms.map((r) => r.id), statuses, location)}"><defs>${ICONS}${HATCH}</defs>${svg}</svg>`;
+}
+
+const SPOKEN: Record<Status, string> = {
+  free: 'Free',
+  soon: 'Free for a short while',
+  busy: 'Taken',
+  locked: 'Locked',
+};
+
+/** Text alternative for screen readers: the rooms on this floor by status. */
+function describe(ids: string[], statuses: Map<string, Status>, location: string | null): string {
+  const parts = (Object.keys(SPOKEN) as Status[])
+    .map((s) => {
+      const list = ids.filter((id) => statuses.get(id) === s);
+      return list.length ? `${SPOKEN[s]}: ${list.join(', ')}.` : '';
+    })
+    .filter(Boolean);
+  if (location && ids.includes(location)) parts.push(`Your room: ${location}.`);
+  return ['Floor plan.', ...parts].join(' ');
 }

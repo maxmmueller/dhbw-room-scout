@@ -9,7 +9,7 @@ A minimal, mobile-first web app that shows DHBW Mannheim students which lecture 
 
 ## Getting started
 
-Requirements: Node.js 20+.
+Requirements: Node.js 20+ (CI uses 22).
 
 ```sh
 npm install
@@ -23,6 +23,8 @@ Open http://localhost:5173, enter a course ID (e.g. `TINF25IT1`) and press Enter
 | `npm run dev` | Dev server with hot reload |
 | `npm run dev -- --host` | Same, also reachable from your phone (same Wi-Fi), via the printed "Network" URL |
 | `npm run build` | Type-check (`tsc`) and build into `dist/` |
+| `npm test` | Unit tests (Vitest); `npm run test:watch` while developing |
+| `npm run typecheck` | Type-check only |
 | `npm run preview` | Serve the production build locally |
 
 Opening `dist/index.html` directly does **not** work, because the API calls need the proxy (see below).
@@ -41,7 +43,8 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 - [Vite](https://vitejs.dev/) + TypeScript (strict), no UI framework
 - The floor plan is rendered as an SVG string with a hand-written isometric projection
 - Plain CSS with tokens in `:root` (one fixed color scheme, no dark mode)
-- Font: Inter via Google Fonts
+- Font: Inter, self-hosted via `@fontsource/inter` (no requests to Google)
+- Tests: Vitest for the logic, the API parsing and the renderer; GitHub Actions runs tests and build on every push
 
 ## Project structure
 
@@ -49,13 +52,15 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 index.html            App shell
 vite.config.ts        Dev/preview proxy for the DHBW APIs
 src/
-  main.ts             Onboarding, cookie, main screen, floor/building navigation, default view, refresh loop
-  api.ts              API types and fetch functions
+  main.ts             Onboarding, cookie, main screen, floor/building navigation, refresh loop (DOM only)
+  model.ts            Pure app logic: floors per building, own room, default floor, course suggestions
+  api.ts              API types, fetch functions (with timeout) and response validation
   availability.ts     Room filter, user location, status rules, lockable rooms
   floorplan.ts        Building units (B/C, A, D, E): footprint, corridors, traced rooms per floor
   render.ts           Isometric SVG renderer and status icons
   logo.ts             The logo as inline SVG (start page, menu)
   style.css           All styles and color tokens
+  *.test.ts           Unit tests
 public/               favicon.svg and apple-touch-icon.png (copied as-is into the build)
 logo/                 Logo source files: symbol, wordmark, stacked and horizontal
                       versions (`*-outlined.svg`: wordmark as paths, no font needed)

@@ -1,3 +1,7 @@
+// Inter, served with the app (no requests to Google Fonts).
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
 import './style.css';
 import {
   CourseNotFoundError,
@@ -8,9 +12,9 @@ import {
   type Course,
   type LectureEvent,
 } from './api';
-import { buildingLetter, dayContext, isAvailable, isRelevant, roomId, roomStatus, type Status } from './availability';
 import { BUILDINGS } from './floorplan';
 import { LOGO_HORIZONTAL, LOGO_STACKED } from './logo';
+import { closestLevel, compute, floorTitle, isUseful, normalizeCourse, suggest, type View } from './model';
 import { renderFloor } from './render';
 
 const app = document.getElementById('app')!;
@@ -20,15 +24,18 @@ const REFRESH_MS = 60_000;
 const REFETCH_MS = 5 * 60_000;
 
 // ── persistence ───────────────────────────────────────────────────────
-const getCourse = () => document.cookie.match(/(?:^|; )course=([^;]+)/)?.[1] ?? null;
+function getCourse(): string | null {
+  const raw = document.cookie.split('; ').find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
+  if (!raw) return null;
+  try {
+    return normalizeCourse(decodeURIComponent(raw)) || null;
+  } catch {
+    return null; // malformed cookie: treat as not set
+  }
+}
 const setCourse = (c: string) =>
   (document.cookie = `${COOKIE}=${encodeURIComponent(c)}; max-age=${60 * 60 * 24 * 365}; path=/; SameSite=Lax`);
 const clearCourse = () => (document.cookie = `${COOKIE}=; max-age=0; path=/`);
-
-interface View {
-  unit: number;
-  level: number;
-}
 
 function loadLastView(): View | null {
   try {
@@ -57,20 +64,10 @@ function now(): Date {
 
 // ── onboarding ────────────────────────────────────────────────────────
 const MAX_SUGGESTIONS = 6;
-const normalizeCourse = (v: string) => v.trim().toUpperCase().replace(/^MA-/, '');
 
 /** Loaded once; on failure the field simply works without suggestions. */
 let courses: Promise<Course[]> | null = null;
 const loadCourses = () => (courses ??= fetchCourses().catch(() => []));
-
-/** Prefix matches first, then matches anywhere in the ID. */
-function suggest(all: Course[], query: string): Course[] {
-  const q = normalizeCourse(query);
-  if (!q) return [];
-  const prefix = all.filter((c) => c.id.startsWith(q));
-  const inner = all.filter((c) => !c.id.startsWith(q) && c.id.includes(q));
-  return [...prefix, ...inner].slice(0, MAX_SUGGESTIONS);
-}
 
 const escapeHtml = (v: string) =>
   v.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
@@ -138,7 +135,7 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
     const query = input.value;
     const all = await loadCourses();
     if (input.value !== query || document.activeElement !== input) return; // stale
-    const next = suggest(all, query);
+    const next = suggest(all, query, MAX_SUGGESTIONS);
     // Hide the list once the input already is exactly the only match.
     matches = next.length === 1 && next[0].id === normalizeCourse(query) ? [] : next;
     active = -1;
@@ -212,17 +209,6 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
 }
 
 // ── main screen ───────────────────────────────────────────────────────
-interface Floor {
-  level: number;
-  name: string;
-  available: number;
-  /** The user's lecture room (current / last / next) is on this floor. */
-  hasOwn: boolean;
-}
-
-/** Worth navigating to: something is free there, or it's where your lecture is. */
-const isUseful = (f: Floor) => f.available > 0 || f.hasOwn;
-
 interface State {
   course: string;
   events: LectureEvent[];
@@ -233,50 +219,6 @@ interface State {
 }
 
 type Direction = 'up' | 'down' | 'left' | 'right';
-
-function compute(state: State) {
-  const t = now();
-  const ctx = dayContext(state.events, t);
-  /** Rooms to draw: all usable rooms plus the user's own room. */
-  const statuses = new Map<string, Status>();
-  const floors: Map<number, Floor>[] = BUILDINGS.map(() => new Map());
-  let own: View | null = null;
-
-  for (const room of state.rooms) {
-    const letter = buildingLetter(room);
-    const unit = BUILDINGS.findIndex((b) => letter !== null && b.letters.includes(letter));
-    const level = room.details.floorLevel;
-    if (unit < 0 || level === null) continue;
-
-    const floor = floors[unit].get(level) ?? { level, name: room.details.floor ?? `${level}`, available: 0, hasOwn: false };
-    floors[unit].set(level, floor);
-
-    const id = roomId(room.name);
-    const isOwn = id === ctx.location;
-    if (isOwn) {
-      own = { unit, level };
-      floor.hasOwn = true;
-    }
-    if (!isRelevant(room) && !isOwn) continue;
-
-    const s = roomStatus(room, t, ctx.freeUntilTarget);
-    statuses.set(id, s);
-    if (isRelevant(room) && isAvailable(s)) floor.available++;
-  }
-
-  return {
-    location: ctx.location,
-    statuses,
-    floors: floors.map((m) => [...m.values()].sort((a, b) => a.level - b.level)),
-    own: own as View | null,
-  };
-}
-
-/** Same level if the unit has it, otherwise the closest existing one. */
-function closestLevel(floors: Floor[], level: number): number {
-  if (floors.length === 0) return level;
-  return floors.reduce((best, f) => (Math.abs(f.level - level) < Math.abs(best - level) ? f.level : best), floors[0].level);
-}
 
 /** Current navigation targets; replaced on every render. */
 const nav = {
@@ -395,21 +337,13 @@ function bounce(dir: Direction) {
   );
 }
 
-/** English floor name for the title, e.g. "Ground floor", "1st floor". */
-function floorTitle(level: number): string {
-  if (level === 0) return 'Ground floor';
-  if (level < 0) return level === -1 ? 'Basement' : `Basement ${-level}`;
-  const suffix = level % 100 >= 11 && level % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][level % 10] ?? 'th');
-  return `${level}${suffix} floor`;
-}
-
 // ── render ────────────────────────────────────────────────────────────
 /**
- * Updates the main screen for `state`. `direction` animates the map in,
- * `changed` pops up the name of what changed (floor / building).
+ * Updates the main screen for `state`. `direction` animates the map in;
+ * `changed` (floor / building) briefly shows the indicators.
  */
 function render(state: State, direction: Direction | null = null, changed: 'floor' | 'unit' | 'both' | null = null) {
-  const { location, statuses, floors, own } = compute(state);
+  const { location, statuses, floors, own } = compute(state.rooms, state.events, now());
 
   if (!state.view) {
     state.view = own ?? loadLastView() ?? { unit: 0, level: 0 };
@@ -547,6 +481,7 @@ function bindGestures(signal: AbortSignal) {
     },
     { signal },
   );
+  app.addEventListener('pointercancel', () => (start = null), { signal });
   app.addEventListener(
     'pointerup',
     (e) => {
@@ -605,6 +540,17 @@ function run(state: State, { showIntro = false } = {}) {
   const update = () => active === state && !state.menuOpen && render(state);
   const tick = setInterval(update, REFRESH_MS);
   const fetchTimer = setInterval(() => void refetch(state).then(update), REFETCH_MS);
+  // Timers are throttled in background tabs: catch up when the app is shown again.
+  let hiddenAt = 0;
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      if (document.hidden) return void (hiddenAt = Date.now());
+      update();
+      if (Date.now() - hiddenAt > REFRESH_MS) void refetch(state).then(update);
+    },
+    { signal: ac.signal },
+  );
   active = state;
   session = {
     stop() {
@@ -636,5 +582,5 @@ async function start(course: string, events?: LectureEvent[]) {
 }
 
 const saved = getCourse();
-if (saved) start(decodeURIComponent(saved));
+if (saved) void start(saved);
 else showOnboarding();
