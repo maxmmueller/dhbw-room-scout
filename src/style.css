@@ -249,6 +249,8 @@ body {
 .screen {
   position: relative;
   height: 100%;
+  /* The hidden details panel waits off-screen; it must not add scrollbars. */
+  overflow: hidden;
 }
 
 /* The map uses the full width (on phones it's limited by width); only the
