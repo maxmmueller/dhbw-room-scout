@@ -230,8 +230,6 @@ interface State {
   /** null until the default view has been resolved on first render. */
   view: View | null;
   menuOpen: boolean;
-  /** A manual refresh from the menu is in flight. */
-  refreshing: boolean;
 }
 
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -297,13 +295,12 @@ const MENU_ICONS = {
   dots: '<circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>',
   course: '<path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5M20 16H7M10.5 12.5 7 16l3.5 3.5"/>',
   own: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>',
-  refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/>',
 };
 const menuIcon = (name: keyof typeof MENU_ICONS) => `<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[name]}</svg>`;
 
 function menu(state: State, hasOwn: boolean) {
   const button = `
-    <button class="menu-btn${state.refreshing ? ' busy' : ''}" aria-label="Menu" aria-haspopup="menu"
+    <button class="menu-btn" aria-label="Menu" aria-haspopup="menu"
       aria-expanded="${state.menuOpen}" aria-controls="menu">${menuIcon('dots')}</button>`;
   if (!state.menuOpen) return button;
   const item = (action: string, icon: keyof typeof MENU_ICONS, label: string) =>
@@ -315,7 +312,6 @@ function menu(state: State, hasOwn: boolean) {
       <div class="menu-course" role="presentation"><span>Course</span><strong>${escapeHtml(state.course)}</strong></div>
       ${item('course', 'course', 'Change course')}
       ${hasOwn ? item('own', 'own', 'Go to my room') : ''}
-      ${item('refresh', 'refresh', 'Refresh')}
     </div>`;
 }
 
@@ -592,14 +588,6 @@ function bindMenu(state: State, own: View | null) {
         peek(unitChanged && floorChanged ? 'both' : unitChanged ? 'unit' : 'floor');
       }
     },
-    refresh: () => {
-      state.refreshing = true;
-      setOpen(false);
-      void refetch(state).finally(() => {
-        state.refreshing = false;
-        if (active === state) render(state);
-      });
-    },
   };
   for (const el of items) el.addEventListener('click', () => actions[el.dataset.action!]());
 }
@@ -693,7 +681,7 @@ async function start(course: string, events?: LectureEvent[]) {
   app.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
   try {
     const [ev, rooms] = await Promise.all([events ?? fetchLectures(course), fetchRooms(now())]);
-    run({ course, events: ev, rooms, view: null, menuOpen: false, refreshing: false }, { showIntro: true });
+    run({ course, events: ev, rooms, view: null, menuOpen: false }, { showIntro: true });
   } catch (err) {
     if (err instanceof CourseNotFoundError) {
       clearCourse();

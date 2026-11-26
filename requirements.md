@@ -165,7 +165,6 @@ So that I can, for example, switch to another course without clearing my cookies
 - The menu shows the current course ID and these actions:
   - **Change course:** opens the course input (with autocomplete, see [US03](#us03--validate-the-course)). The new course is validated before it replaces the old one; *Cancel* (or Escape) returns to the map with the old course unchanged.
   - **Go to my room:** jumps to the building unit and floor of the own room. Only shown if an own room is known.
-  - **Refresh:** fetches the timetable and room data again right away.
 - The menu closes on picking an action, tapping outside it, or pressing Escape. While it is open, swipes and arrow keys don't change the floor or building.
 - It is fully usable with keyboard and screen reader (menu button with `aria-expanded`, items as menu items, focus moves into the menu and back).
 

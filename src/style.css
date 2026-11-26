@@ -581,14 +581,6 @@ body {
   fill: currentColor;
 }
 
-.menu-btn.busy svg {
-  animation: pulse 0.9s ease-in-out infinite alternate;
-}
-
-@keyframes pulse {
-  to { opacity: 0.25; }
-}
-
 .menu-backdrop {
   position: fixed;
   inset: 0;
