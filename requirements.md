@@ -191,7 +191,7 @@ I want my own room to be clearly highlighted,
 So that I can judge which free rooms are close to me.
 
 *Acceptance criteria:*
-- The own room is drawn in **blue** with a **pin** above it, regardless of its availability.
+- The own room is drawn in **blue**, regardless of its availability.
 - Its status icon is still shown, so the user can see whether the room itself is free.
 - The own room is drawn even if it isn't a usable room type (e.g. `336B EDV-Übungsraum`); its geometry must therefore be part of the floor plan.
 

@@ -128,7 +128,7 @@ This document lists only the **core** user stories, the ones the app can't work 
 > so that **I can see which free rooms are close to me**.
 
 **Acceptance criteria:**
-- My room is drawn in **blue with a pin**, and I can still see whether it's free.
+- My room is drawn in **blue**, and I can still see whether it's free.
 
 ---
 

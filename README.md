@@ -113,7 +113,7 @@ After switching buildings, the same floor level is kept if it exists, otherwise 
 
 The **target time** is the start of the user's next lecture today, or *now + 1 h* if there is none (after the last lecture, or on a lecture-free day).
 
-The user's own lecture room is always drawn **blue** with a pin above it. Its status icon still shows whether it's free.
+The user's own lecture room is always drawn **blue**. Its status icon still shows whether it's free.
 
 A floor counts as worth swiping to if it has at least one `free` or `soon` room, or holds the user's own room.
 

@@ -474,14 +474,6 @@ body {
 .label.here .badge { fill: #fff; }
 .label.here.busy .icon, .label.here.locked .icon { stroke: var(--here-s); }
 
-.pin path { fill: var(--here-s); stroke: #fff; stroke-width: 3; }
-.pin circle { fill: #fff; }
-.pin { animation: bob 2.4s ease-in-out infinite; }
-
-@keyframes bob {
-  50% { transform: translateY(-10px); }
-}
-
 .unmapped {
   font: 600 56px var(--font);
   text-anchor: middle;
