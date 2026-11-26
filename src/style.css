@@ -304,6 +304,39 @@ body {
   overflow: visible;
 }
 
+/* Where you are: building + floor, top left. Overlays the stage, so the map
+   keeps its full size (the map's top-left corner is empty in isometric). */
+.place {
+  position: absolute;
+  z-index: 1;
+  top: max(18px, calc(env(safe-area-inset-top) + 6px));
+  left: 22px;
+  right: 64px;
+  pointer-events: none;
+}
+.place-unit {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.place-floor {
+  display: block;
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.street {
+  font: 800 90px var(--font);
+  letter-spacing: 0.2em;
+  fill: rgb(29 35 48 / 20%);
+}
+
 /* ── page indicators (US07, US09, US10) ─────────────────────── */
 /* Pills: one per floor (top right, under the menu; ground floor at the
    bottom) and one per building unit (bottom center). Invisible at rest,

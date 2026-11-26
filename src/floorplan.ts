@@ -32,6 +32,8 @@ export interface BuildingUnit {
   corridors: Rect[];
   /** Traced floors per API `floorLevel`. Floors missing here aren't mapped yet. */
   floors: Record<number, FloorPlan>;
+  /** Street along the east side, written on the ground next to the building. */
+  street?: string;
 }
 
 export interface FloorPlan {
@@ -57,6 +59,7 @@ const campus = (ox: number, oy: number) => (x0: number, y0: number, x1: number, 
 const BC: BuildingUnit = {
   label: 'B/C',
   letters: ['B', 'C'],
+  street: 'Coblitzallee',
   footprint: [
     r(170, 115, 1735, 520), // north wing
     r(1400, 280, 1760, 1700), // east wing

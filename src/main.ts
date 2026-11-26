@@ -329,6 +329,7 @@ function mountScreen() {
   app.innerHTML = `
     <div class="screen">
       <main class="stage"><div class="floor"></div></main>
+      <header class="place" aria-hidden="true"><span class="place-unit"></span><span class="place-floor"></span></header>
       <nav class="pills floors" aria-label="Floors"></nav>
       <nav class="pills units" aria-label="Buildings"></nav>
       <span class="peek peek-floor" aria-hidden="true"></span>
@@ -444,6 +445,14 @@ function bounce(dir: Direction) {
   );
 }
 
+/** English floor name for the title, e.g. "Ground floor", "1st floor". */
+function floorTitle(level: number): string {
+  if (level === 0) return 'Ground floor';
+  if (level < 0) return level === -1 ? 'Basement' : `Basement ${-level}`;
+  const suffix = level % 100 >= 11 && level % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][level % 10] ?? 'th');
+  return `${level}${suffix} floor`;
+}
+
 // ── render ────────────────────────────────────────────────────────────
 /**
  * Updates the main screen for `state`. `direction` animates the map in,
@@ -473,7 +482,7 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
   };
 
   const floorEl = app.querySelector<HTMLElement>('.floor')!;
-  floorEl.innerHTML = renderFloor(plan, statuses, location);
+  floorEl.innerHTML = renderFloor(plan, statuses, location, b.street);
   floorEl.className = 'floor';
   if (direction) {
     void floorEl.offsetWidth; // restart the enter animation
@@ -493,6 +502,8 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
   const position = `${b.label} · ${current?.name ?? ''}`;
   app.querySelector('.peek-floor')!.textContent = current?.name ?? '';
   app.querySelector('.peek-unit')!.textContent = b.label;
+  app.querySelector('.place-unit')!.textContent = `Building ${b.label}`;
+  app.querySelector('.place-floor')!.textContent = floorTitle(level);
   const live = app.querySelector('.sr-only')!;
   if (live.textContent !== position) live.textContent = position;
 
