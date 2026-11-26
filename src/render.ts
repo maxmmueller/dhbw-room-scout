@@ -91,14 +91,15 @@ export function renderFloor(
   svg += labels.join('');
 
   // Street name lying on the ground along the east side (reads bottom-left to
-  // top-right). Not part of the viewBox, so it never shrinks the map.
+  // top-right), centered on the side. Not part of the viewBox, so it never
+  // shrinks the map.
   if (street) {
     const x = Math.max(...all.map((r) => r.x1)) + 140;
-    const y = Math.max(...all.map((r) => r.y1)) - 150;
+    const y = (Math.min(...all.map((r) => r.y0)) + Math.max(...all.map((r) => r.y1))) / 2;
     const [tx, ty] = p(x, y);
     svg +=
       `<g transform="matrix(${COS} ${-COS * TILT} ${COS} ${COS * TILT} ${tx.toFixed(1)} ${ty.toFixed(1)})">` +
-      `<text class="street">${street.toUpperCase()}</text></g>`;
+      `<text class="street" text-anchor="middle">${street.toUpperCase()}</text></g>`;
   }
 
   if (plan.rooms === null) {
