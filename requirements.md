@@ -167,7 +167,6 @@ So that I can, for example, switch to another course without clearing my cookies
 - The menu shows the current course ID (if one is set) and these actions:
   - **Add course** (without a course) / **Change course** (with one): opens the course page (with autocomplete, see [US01](#us01--optional-course-entry) and [US03](#us03--validate-the-course)). The new course is validated before it replaces the old one; × (or Escape) returns to the map with the course unchanged.
   - **Go to my room:** jumps to the building unit and floor of the own room. Only shown if an own room is known, so never without a course.
-  - **Remove course:** only shown with a course. Forgets the course; the map stays on the current floor, and the own room is no longer highlighted.
 - The menu closes on picking an action, tapping outside it, or pressing Escape. While it is open, swipes and arrow keys don't change the floor or building.
 - It is fully usable with keyboard and screen reader (menu button with `aria-expanded`, items as menu items, focus moves into the menu and back).
 

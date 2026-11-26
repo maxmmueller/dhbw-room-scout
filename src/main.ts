@@ -270,7 +270,6 @@ const MENU_ICONS = {
   dots: '<circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>',
   course: '<path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5M20 16H7M10.5 12.5 7 16l3.5 3.5"/>',
   add: '<path d="M12 5.5v13M5.5 12h13"/>',
-  remove: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   own: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>',
 };
 const menuIcon = (name: keyof typeof MENU_ICONS) => `<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[name]}</svg>`;
@@ -289,7 +288,6 @@ function menu(state: State, hasOwn: boolean) {
       ${state.course ? `<div class="menu-course" role="presentation"><span>Course</span><strong>${escapeHtml(state.course)}</strong></div>` : ''}
       ${state.course ? item('course', 'course', 'Change course') : item('course', 'add', 'Add course')}
       ${hasOwn ? item('own', 'own', 'Go to my room') : ''}
-      ${state.course ? item('remove', 'remove', 'Remove course') : ''}
     </div>`;
 }
 
@@ -492,12 +490,6 @@ function bindMenu(state: State, own: View | null) {
       state.menuOpen = false;
       showCoursePage({ value: state.course ?? '' });
     },
-    remove: () => {
-      clearCourse();
-      state.course = null;
-      state.events = [];
-      setOpen(false);
-    },
     own: () => {
       const prev = state.view;
       if (own) {
@@ -566,12 +558,10 @@ let session: { stop(): void } | null = null;
 
 async function refetch(state: State) {
   try {
-    const course = state.course;
-    const [events, rooms] = await Promise.all([course ? fetchLectures(course) : [], fetchRooms(now())]);
-    // The course may have been changed/removed meanwhile: only apply matching data.
-    if (state.course !== course) return;
-    state.events = events;
-    state.rooms = rooms;
+    [state.events, state.rooms] = await Promise.all([
+      state.course ? fetchLectures(state.course) : [],
+      fetchRooms(now()),
+    ]);
   } catch {
     /* keep showing the last known data */
   }
