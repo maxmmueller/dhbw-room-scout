@@ -100,3 +100,49 @@ export function suggest(all: Course[], query: string, max: number): Course[] {
   const inner = all.filter((c) => !c.id.startsWith(q) && c.id.includes(q));
   return [...prefix, ...inner].slice(0, max);
 }
+
+// ── room details ──────────────────────────────────────────────────────
+export interface Booking {
+  start: Date;
+  end: Date;
+}
+
+export interface RoomDetails {
+  /** How long the room stays as it is, e.g. "Free for 3 h 30 min". */
+  headline: string;
+  /** Today's bookings, merged where they touch or overlap. */
+  bookings: Booking[];
+}
+
+export const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+function duration(ms: number): string {
+  const mins = Math.max(1, Math.round(ms / 60_000));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
+}
+
+export function mergeBookings(room: ApiRoom): Booking[] {
+  const slots = room.occupancies
+    .map((o) => ({ start: new Date(o.startTime), end: new Date(o.endTime) }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  const merged: Booking[] = [];
+  for (const s of slots) {
+    const last = merged.at(-1);
+    if (last && s.start <= last.end) last.end = new Date(Math.max(last.end.getTime(), s.end.getTime()));
+    else merged.push({ ...s });
+  }
+  return merged;
+}
+
+/** What the details panel says about a room right now. */
+export function roomDetails(room: ApiRoom, status: Status, now: Date): RoomDetails {
+  const bookings = mergeBookings(room);
+  const current = bookings.find((b) => b.start <= now && now < b.end);
+  const next = bookings.find((b) => b.start > now);
+  if (current) return { headline: `Taken for ${duration(current.end.getTime() - now.getTime())}`, bookings };
+  if (status === 'locked') return { headline: 'Locked', bookings };
+  if (!next) return { headline: 'Free for the rest of the day', bookings };
+  return { headline: `Free for ${duration(next.start.getTime() - now.getTime())}`, bookings };
+}

@@ -73,7 +73,7 @@ export function renderFloor(
     const isHere = room.id === location;
     const h = isHere || status === 'free' || status === 'soon' ? ROOM_HIGH : ROOM_LOW;
     const r = { x0: room.x0 + INSET, y0: room.y0 + INSET, x1: room.x1 - INSET, y1: room.y1 - INSET };
-    svg += `<g class="room ${status}${isHere ? ' here' : ''}">`;
+    svg += `<g class="room ${status}${isHere ? ' here' : ''}" data-room="${room.id}">`;
     svg += poly(east(r, 0, h), 'e') + poly(south(r, 0, h), 's') + poly(top(r, h), 't');
     svg += '</g>';
 
@@ -82,7 +82,7 @@ export function renderFloor(
     const halfText = Math.max(27, room.id.length * 15);
     labelBoxes.push([lx - halfText, ly - 61], [lx + halfText, ly + 44]);
     labels.push(
-      `<g class="label ${status}${isHere ? ' here' : ''}" transform="translate(${lx.toFixed(1)} ${ly.toFixed(1)})">` +
+      `<g class="label ${status}${isHere ? ' here' : ''}" data-room="${room.id}" transform="translate(${lx.toFixed(1)} ${ly.toFixed(1)})">` +
         `<circle class="badge" cy="-34" r="27"/>` +
         `<use class="icon" href="#i-${status}" x="-21" y="-55" width="42" height="42"/>` +
         `<text y="32">${room.id}</text></g>`,

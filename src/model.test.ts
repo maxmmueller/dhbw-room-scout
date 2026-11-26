@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ApiRoom, LectureEvent } from './api';
-import { closestLevel, compute, floorTitle, isUseful, normalizeCourse, suggest, type Floor } from './model';
+import { closestLevel, compute, floorTitle, isUseful, mergeBookings, normalizeCourse, roomDetails, suggest, type Floor } from './model';
 import { renderFloor } from './render';
 
 const at = (h: number) => new Date(2026, 10, 26, h);
@@ -118,5 +118,34 @@ describe('renderFloor', () => {
 
   it('shows a note for floors that are not mapped yet', () => {
     expect(renderFloor({ ...plan, rooms: null }, new Map(), null)).toContain('Plan not mapped yet');
+  });
+});
+
+describe('roomDetails', () => {
+  const r = room('238B VL-Raum', 2, 'B', 'VL-Raum', [
+    [9, 10],
+    [10, 11], // touches the first one: merged
+    [14, 16],
+  ]);
+
+  it('merges touching bookings', () => {
+    expect(mergeBookings(r).map((b) => [b.start.getHours(), b.end.getHours()])).toEqual([
+      [9, 11],
+      [14, 16],
+    ]);
+  });
+
+  it('says how long a taken room stays taken', () => {
+    expect(roomDetails(r, 'busy', new Date(2026, 10, 26, 9, 45)).headline).toBe('Taken for 1 h 15 min');
+  });
+
+  it('says how long a room stays free', () => {
+    expect(roomDetails(r, 'free', at(12)).headline).toBe('Free for 2 h');
+    expect(roomDetails(r, 'soon', new Date(2026, 10, 26, 13, 35)).headline).toBe('Free for 25 min');
+  });
+
+  it('handles locked rooms and rooms without further bookings', () => {
+    expect(roomDetails(r, 'locked', at(12)).headline).toBe('Locked');
+    expect(roomDetails(r, 'free', at(17)).headline).toBe('Free for the rest of the day');
   });
 });

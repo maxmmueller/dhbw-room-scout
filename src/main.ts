@@ -14,7 +14,8 @@ import {
 } from './api';
 import { BUILDINGS } from './floorplan';
 import { LOGO_HORIZONTAL, LOGO_STACKED } from './logo';
-import { closestLevel, compute, floorTitle, isUseful, normalizeCourse, suggest, type View } from './model';
+import { roomId, type Status } from './availability';
+import { closestLevel, compute, floorTitle, hhmm, isUseful, normalizeCourse, roomDetails, suggest, type View } from './model';
 import { renderFloor } from './render';
 
 const app = document.getElementById('app')!;
@@ -249,6 +250,8 @@ interface State {
   /** null until the default view has been resolved on first render. */
   view: View | null;
   menuOpen: boolean;
+  /** Room whose details are open (US31), on the current floor. */
+  selected?: string | null;
 }
 
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -263,6 +266,8 @@ const nav = {
   floor(_i: number) {},
   /** Tap on a building pill. */
   unit(_i: number) {},
+  /** Tap on a room (or null: close the details). */
+  select(_id: string | null) {},
 };
 const noop = () => {};
 
@@ -301,6 +306,7 @@ function mountScreen() {
   app.innerHTML = `
     <div class="screen">
       <main class="stage"><div class="floor"></div></main>
+      <aside class="details" aria-label="Room details"></aside>
       <header class="place" aria-hidden="true"><span class="place-unit"></span><span class="place-floor"></span></header>
       <nav class="pills floors" aria-label="Floors"></nav>
       <nav class="pills units" aria-label="Buildings"></nav>
@@ -309,6 +315,7 @@ function mountScreen() {
     </div>`;
   const screen = app.querySelector<HTMLElement>('.screen')!;
   screen.addEventListener('click', (e) => {
+    if ((e.target as Element).closest('.details-close')) return nav.select(null);
     const pill = (e.target as Element).closest<HTMLElement>('.pill');
     if (!pill) return;
     if (pill.dataset.floor !== undefined) nav.floor(Number(pill.dataset.floor));
@@ -371,6 +378,41 @@ function bounce(dir: Direction) {
   );
 }
 
+// ── room details (US31) ────────────────────────────────────────────
+const DAY_START = 8; // timeline from 8:00 …
+const DAY_END = 20; // … to 20:00
+
+function detailsHtml(room: ApiRoom, status: Status, t: Date): string {
+  const d = roomDetails(room, status, t);
+  const span = (DAY_END - DAY_START) * 60;
+  const pct = (date: Date) => {
+    const m = date.getHours() * 60 + date.getMinutes() - DAY_START * 60;
+    return (Math.min(Math.max(m, 0), span) / span) * 100;
+  };
+  const blocks = d.bookings
+    .map((b) => ({ l: pct(b.start), r: pct(b.end), label: `${hhmm(b.start)}–${hhmm(b.end)}` }))
+    .filter((b) => b.r > b.l)
+    .map((b) => `<i class="tl-block" style="left:${b.l}%;width:${b.r - b.l}%" title="${b.label}"></i>`)
+    .join('');
+  const nowPct = pct(t);
+  // The part of the day that is over is faded; a line marks now.
+  const now = nowPct > 0 && nowPct < 100 ? `<i class="tl-past" style="width:${nowPct}%"></i><i class="tl-now" style="left:${nowPct}%"></i>` : '';
+  const past = nowPct >= 100 ? '<i class="tl-past" style="width:100%"></i>' : '';
+  const ticks = Array.from({ length: (DAY_END - DAY_START) / 2 + 1 }, (_, i) => `<span>${DAY_START + 2 * i}</span>`).join('');
+  const id = escapeHtml(roomId(room.name));
+  const booked = d.bookings.map((b) => `${hhmm(b.start)}–${hhmm(b.end)}`).join(', ');
+  return `
+    <button class="details-close" aria-label="Close room details">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>
+    </button>
+    <h2 class="details-room">${id}</h2>
+    <p class="details-head ${status}">${d.headline}</p>
+    <div class="timeline" role="img" aria-label="${booked ? `Booked today: ${booked}` : 'No bookings today'}">
+      <div class="tl-track">${blocks}${past}${now}</div>
+      <div class="tl-ticks" aria-hidden="true">${ticks}</div>
+    </div>`;
+}
+
 // ── render ────────────────────────────────────────────────────────────
 /**
  * Updates the main screen for `state`. `direction` animates the map in;
@@ -407,6 +449,19 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
     floorEl.classList.add(`enter-${direction}`);
   }
 
+  // Room details: only for a room drawn on this floor.
+  const selected = state.selected && floorEl.querySelector(`.room[data-room="${CSS.escape(state.selected)}"]`) ? state.selected : null;
+  state.selected = selected;
+  const screen = app.querySelector<HTMLElement>('.screen')!;
+  const details = app.querySelector<HTMLElement>('.details')!;
+  const apiRoom = selected ? state.rooms.find((r) => roomId(r.name) === selected) : undefined;
+  screen.classList.toggle('has-details', !!apiRoom);
+  for (const g of floorEl.querySelectorAll<SVGGElement>('[data-room]')) g.classList.toggle('selected', g.dataset.room === selected);
+  if (apiRoom) {
+    details.innerHTML = detailsHtml(apiRoom, statuses.get(selected!)!, now());
+    screen.style.setProperty('--details-h', `${details.offsetHeight}px`);
+  }
+
   syncPills(
     app.querySelector<HTMLElement>('.pills.floors')!,
     'floor',
@@ -430,6 +485,7 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
 
   const go = (next: View, dir: Direction, what: 'floor' | 'unit') => {
     state.view = next;
+    state.selected = null;
     saveLastView(next);
     render(state, dir, what);
   };
@@ -446,7 +502,7 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
 
   if (state.menuOpen) {
     // The menu is modal: no floor/building changes behind it.
-    Object.assign(nav, { up: noop, down: noop, left: noop, right: noop, floor: noop, unit: noop });
+    Object.assign(nav, { up: noop, down: noop, left: noop, right: noop, floor: noop, unit: noop, select: noop });
     return;
   }
   nav.up = () => (above ? go({ unit, level: above.level }, 'up', 'floor') : bounce('up'));
@@ -455,6 +511,13 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
   nav.right = () => toUnit(unit + 1);
   nav.floor = toFloor;
   nav.unit = toUnit;
+  nav.select = (id) => {
+    // Tapping the open room again closes it.
+    const next = id === state.selected ? null : id;
+    if (next === state.selected) return;
+    state.selected = next;
+    render(state);
+  };
 }
 
 function bindMenu(state: State, own: View | null) {
@@ -494,6 +557,7 @@ function bindMenu(state: State, own: View | null) {
       const prev = state.view;
       if (own) {
         state.view = own;
+        state.selected = null;
         saveLastView(own);
       }
       setOpen(false);
@@ -508,8 +572,8 @@ function bindGestures(signal: AbortSignal) {
   app.addEventListener(
     'pointerdown',
     (e) => {
-      // Taps on pills and the menu aren't swipes and don't wake the pills.
-      if ((e.target as Element).closest('.pill, .menu-layer')) return;
+      // Taps on pills, the menu and the details panel aren't swipes and don't wake the pills.
+      if ((e.target as Element).closest('.pill, .menu-layer, .details')) return;
       start = { x: e.clientX, y: e.clientY };
       wake();
     },
@@ -523,7 +587,13 @@ function bindGestures(signal: AbortSignal) {
       const dx = e.clientX - start.x;
       const dy = e.clientY - start.y;
       start = null;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 60) return;
+      const dist = Math.max(Math.abs(dx), Math.abs(dy));
+      if (dist < 10) {
+        // A tap: open a room's details, or close them by tapping elsewhere.
+        const room = (e.target as Element).closest<SVGElement>('[data-room]')?.dataset.room ?? null;
+        return nav.select(room);
+      }
+      if (dist < 60) return;
       if (Math.abs(dy) >= Math.abs(dx)) (dy > 0 ? nav.up : nav.down)(); // pull down → floor above
       else (dx > 0 ? nav.left : nav.right)(); // pull right → building on the left
     },
@@ -543,6 +613,7 @@ function bindGestures(signal: AbortSignal) {
   window.addEventListener(
     'keydown',
     (e) => {
+      if (e.key === 'Escape') return nav.select(null);
       const key: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
       if (key[e.key]) nav[key[e.key]]();
     },

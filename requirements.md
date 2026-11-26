@@ -170,6 +170,19 @@ So that I can, for example, switch to another course without clearing my cookies
 - The menu closes on picking an action, tapping outside it, or pressing Escape. While it is open, swipes and arrow keys don't change the floor or building.
 - It is fully usable with keyboard and screen reader (menu button with `aria-expanded`, items as menu items, focus moves into the menu and back).
 
+
+#### US31 – Room details
+
+As a student,
+I want to tap a room to see how long it is free and when it is booked today,
+So that I can decide whether it's worth walking there.
+
+*Acceptance criteria:*
+- Tapping a room on the map opens its details; tapping it again, tapping the empty map, the × button or Escape closes them. Switching floor or building closes them too.
+- The details show the room number (small) and, as the headline, how long the room stays as it is: `Free for 3 h 30 min`, `Free for the rest of the day`, `Taken for 45 min` or `Locked`, colored like the room.
+- A slim timeline from 8:00 to 20:00 (labels every 2 hours) shows the day: green = free, red = booked, the part that is already over is faded, and a blue line marks now.
+- On phones the details open as a sheet at the bottom and the map moves up and shrinks to fit above it. On wide screens they open as a panel on the right and the map moves left and gets a bit smaller.
+- While the details are open, all other rooms are drawn faded; the selected room keeps its colors.
 ---
 
 ### 4. User Location

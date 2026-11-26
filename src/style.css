@@ -258,6 +258,100 @@ body {
   inset: max(56px, calc(env(safe-area-inset-top) + 44px)) 4px max(40px, calc(env(safe-area-inset-bottom) + 28px));
 }
 
+/* ── room details (US31) ───────────────────────────────────── */
+/* Phone: a sheet at the bottom, the map moves up and shrinks to fit above it.
+   Wide screens: a panel on the right, the map moves left and gets smaller. */
+.stage { transition: top 0.35s, bottom 0.35s, left 0.35s, right 0.35s; transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+.screen.has-details .stage {
+  top: 84px;
+  bottom: calc(var(--details-h, 0px) + max(28px, env(safe-area-inset-bottom) + 18px));
+}
+
+.details {
+  position: absolute;
+  z-index: 4;
+  left: 10px;
+  right: 10px;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  padding: 18px 20px 16px;
+  background: var(--slab-top);
+  border-radius: 22px;
+  box-shadow: 0 1px 0 var(--line), 0 18px 40px -10px rgb(29 35 48 / 25%);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(calc(100% + 24px));
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.25s, visibility 0s 0.35s;
+}
+
+.screen.has-details .details {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.25s;
+}
+
+.screen.has-details .pills.units { visibility: hidden; }
+
+@media (min-width: 760px) {
+  /* Panel left of the floor dots, which stay at the right edge. */
+  .screen.has-details .stage { top: 110px; bottom: 90px; left: 40px; right: 444px; }
+  .details { left: auto; right: 44px; top: 76px; bottom: auto; width: 360px; transform: translateX(calc(100% + 60px)); }
+  .screen.has-details .pills.units { visibility: visible; left: calc((100% - 416px) / 2); }
+}
+
+.details-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.details-close:hover { color: var(--ink); background: rgb(29 35 48 / 6%); }
+.details-close svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+/* Room number small on top, how long it stays free/taken as the headline. */
+.details-room { margin: 0; padding-right: 40px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-soft); }
+.details-head { margin: 4px 0 0; padding-right: 40px; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.details-head.free { color: var(--free-s); }
+.details-head.soon { color: #8a5a10; }
+.details-head.busy, .details-head.locked { color: var(--ink); }
+
+/* Day timeline: green = free, red = booked, faded = already over, blue line = now. */
+.timeline { margin-top: 14px; }
+.tl-track { position: relative; height: 18px; border-radius: 6px; overflow: hidden; background: rgb(44 154 104 / 55%); }
+.tl-block { position: absolute; top: 0; bottom: 0; background: #c8554a; }
+.tl-past { position: absolute; top: 0; bottom: 0; left: 0; background: rgb(251 250 247 / 55%); }
+.tl-now { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--here); }
+.tl-ticks { display: flex; justify-content: space-between; margin-top: 5px; font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tl-ticks span { width: 0; display: flex; justify-content: center; }
+.tl-ticks span:first-child { justify-content: flex-start; }
+.tl-ticks span:last-child { justify-content: flex-end; }
+
+/* Other rooms step back while one is open. Mixed colors instead of opacity,
+   so overlapping rooms don't show through each other. */
+.has-details .room:not(.selected).free .t { fill: color-mix(in srgb, var(--free) 28%, var(--bg)); stroke: color-mix(in srgb, var(--free) 28%, var(--bg)); }
+.has-details .room:not(.selected).free .e { fill: color-mix(in srgb, var(--free-e) 32%, var(--bg)); }
+.has-details .room:not(.selected).free .s { fill: color-mix(in srgb, var(--free-s) 36%, var(--bg)); }
+.has-details .room:not(.selected).soon .t { fill: color-mix(in srgb, var(--soon) 30%, var(--bg)); stroke: color-mix(in srgb, var(--soon) 30%, var(--bg)); }
+.has-details .room:not(.selected).soon .e { fill: color-mix(in srgb, var(--soon-e) 34%, var(--bg)); }
+.has-details .room:not(.selected).soon .s { fill: color-mix(in srgb, var(--soon-s) 38%, var(--bg)); }
+.has-details .room:not(.selected).here .t { fill: color-mix(in srgb, var(--here) 28%, var(--bg)); stroke: color-mix(in srgb, var(--here) 28%, var(--bg)); }
+.has-details .room:not(.selected).here .e { fill: color-mix(in srgb, var(--here-e) 32%, var(--bg)); }
+.has-details .room:not(.selected).here .s { fill: color-mix(in srgb, var(--here-s) 36%, var(--bg)); }
+.has-details .room:not(.selected):is(.busy, .locked):not(.here) .t { fill: color-mix(in srgb, var(--busy) 45%, var(--bg)); stroke: color-mix(in srgb, var(--busy) 45%, var(--bg)); }
+.has-details .room:not(.selected):is(.busy, .locked):not(.here) .e { fill: color-mix(in srgb, var(--busy-e) 45%, var(--bg)); }
+.has-details .room:not(.selected):is(.busy, .locked):not(.here) .s { fill: color-mix(in srgb, var(--busy-s) 45%, var(--bg)); }
+.has-details .label:not(.selected) { opacity: 0.35; }
+.map [data-room] { cursor: pointer; }
+
 .floor {
   position: absolute;
   inset: 0;
