@@ -66,6 +66,7 @@ export function renderFloor(
   // Rooms as extruded blocks, back to front.
   const rooms = (plan.rooms ?? []).filter((rm) => statuses.has(rm.id)).sort((a, b) => depth(a) - depth(b));
   const labels: string[] = [];
+  const labelBoxes: Pt[] = [];
   for (const room of rooms) {
     const status = statuses.get(room.id)!;
     const isHere = room.id === location;
@@ -76,6 +77,9 @@ export function renderFloor(
     svg += '</g>';
 
     const [lx, ly] = p((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, h);
+    // Badge reaches 61 above the anchor, the room number ~44 below it.
+    const halfText = Math.max(27, room.id.length * 15);
+    labelBoxes.push([lx - halfText, ly - 61], [lx + halfText, ly + 44]);
     labels.push(
       `<g class="label ${status}${isHere ? ' here' : ''}" transform="translate(${lx.toFixed(1)} ${ly.toFixed(1)})">` +
         `<circle class="badge" cy="-34" r="27"/>` +
@@ -89,8 +93,9 @@ export function renderFloor(
     svg += `<text class="unmapped" x="0" y="0">Plan not mapped yet</text>`;
   }
 
-  // Tight viewBox around the projected building (+ room for labels).
-  const corners = all.flatMap((r) => [...top(r, ROOM_HIGH + 240), ...top(r, -SLAB)]);
+  // Tight viewBox around what is actually drawn (building + labels), so the
+  // map is centred in the screen.
+  const corners = [...all.flatMap((r) => [...top(r, ROOM_HIGH), ...top(r, -SLAB)]), ...labelBoxes];
   const xs = corners.map((c) => c[0]);
   const ys = corners.map((c) => c[1]);
   const pad = 30;
