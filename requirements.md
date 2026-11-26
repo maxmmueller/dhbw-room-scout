@@ -29,17 +29,19 @@ Related: [`idea.md`](idea.md) (product concept) · [`README.md`](README.md) (dev
 
 ### 1. Onboarding
 
-#### US01 – One-time course entry
+#### US01 – Optional course entry
 
 As a first-time user,
-I want to be asked once for my course ID in a single text field,
-So that the app can load my timetable and work out where I am.
+I want to be asked once for my course ID, but be able to skip it,
+So that the app can work out where I am, while I can still just look for free rooms without one.
 
 *Acceptance criteria:*
-- The onboarding screen shows only the app logo (see [US29](#us29--app-logo)) and the text field (with a submit control inside it); there are no other controls or texts.
+- On the first visit the course page shows only the app logo (see [US29](#us29--app-logo)), the text field (with a submit control inside it) and a close button (×) in the top-right corner. The same page is used for adding or changing the course later (see [US30](#us30--menu-for-less-frequent-actions)).
 - The placeholder shows an example (`e.g. TINF25IT1`) so the expected format is clear.
 - Input is case-insensitive; a leading `MA-` is accepted and stripped.
 - The course ID is stored in a cookie; on later visits the app opens directly on the floor plan.
+- Closing the page (× or Escape) opens the map without changing the course. On the first visit this is remembered on the device, so the course page doesn't show up by itself again.
+- Without a course there is no own room: no room is highlighted, "Go to my room" isn't offered, and rooms are colored as after the last lecture of the day (green = free for at least an hour, see [US16](#us16--traffic-light-after-the-last-lecture)).
 
 #### US03 – Validate the course
 
@@ -56,7 +58,7 @@ So that I don't end up with an empty or wrong map.
   - If the course list can't be loaded, the field works as before, just without suggestions.
 - The course is checked against the timetable API before it is saved; an unknown course (HTTP 404) shows a short error ("Course not found") and nothing is stored.
 - A network error shows a separate short message and lets the user try again.
-- If a stored course later turns out to be unknown, it is cleared and the onboarding screen is shown.
+- If a stored course later turns out to be unknown, it is cleared and the course page is shown with the error.
 
 ---
 
@@ -151,8 +153,8 @@ So that I don't have to navigate first.
 
 *Acceptance criteria:*
 - If an own room is known: open on the building unit and floor of that room.
-- Otherwise (lecture-free day, no lecture today): open on the last building/floor viewed on this device.
-- If nothing was viewed yet: open on **B/C, ground floor (EG)**.
+- Otherwise (no course, or no lecture today): open on the last building/floor viewed on this device.
+- If nothing was viewed yet: open on **B/C, 1st floor (1. OG)**.
 
 #### US30 – Menu for less frequent actions
 
@@ -162,9 +164,10 @@ So that I can, for example, switch to another course without clearing my cookies
 
 *Acceptance criteria:*
 - A single, unobtrusive menu button (⋯) sits in the top-right corner of the main screen; the menu opens as a small popover from it.
-- The menu shows the current course ID and these actions:
-  - **Change course:** opens the course input (with autocomplete, see [US03](#us03--validate-the-course)). The new course is validated before it replaces the old one; *Cancel* (or Escape) returns to the map with the old course unchanged.
-  - **Go to my room:** jumps to the building unit and floor of the own room. Only shown if an own room is known.
+- The menu shows the current course ID (if one is set) and these actions:
+  - **Add course** (without a course) / **Change course** (with one): opens the course page (with autocomplete, see [US01](#us01--optional-course-entry) and [US03](#us03--validate-the-course)). The new course is validated before it replaces the old one; × (or Escape) returns to the map with the course unchanged.
+  - **Go to my room:** jumps to the building unit and floor of the own room. Only shown if an own room is known, so never without a course.
+  - **Remove course:** only shown with a course. Forgets the course; the map stays on the current floor, and the own room is no longer highlighted.
 - The menu closes on picking an action, tapping outside it, or pressing Escape. While it is open, swipes and arrow keys don't change the floor or building.
 - It is fully usable with keyboard and screen reader (menu button with `aria-expanded`, items as menu items, focus moves into the menu and back).
 
@@ -385,7 +388,6 @@ These were part of earlier drafts and are deliberately **not** planned for now:
 - Breadcrumb navigation
 - Recommendation card / "best room" logic
 - "Free until" times and "last updated" indicator
-- Using the app without a course
 - PWA / installable app
 - Opening hours of the buildings
 - Other DHBW Mannheim sites

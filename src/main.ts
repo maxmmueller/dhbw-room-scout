@@ -20,6 +20,10 @@ import { renderFloor } from './render';
 const app = document.getElementById('app')!;
 const COOKIE = 'course';
 const LAST_VIEW_KEY = 'lastView';
+/** Set once the course page was submitted or closed: later visits open the map directly. */
+const WELCOMED_KEY = 'welcomed';
+/** Where the app opens without an own room and without a last view: B/C, 1st floor. */
+const DEFAULT_VIEW: View = { unit: 0, level: 1 };
 const REFRESH_MS = 60_000;
 const REFETCH_MS = 5 * 60_000;
 
@@ -47,6 +51,21 @@ function loadLastView(): View | null {
   }
 }
 
+const isWelcomed = () => {
+  try {
+    return localStorage.getItem(WELCOMED_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const setWelcomed = () => {
+  try {
+    localStorage.setItem(WELCOMED_KEY, '1');
+  } catch {
+    /* storage unavailable: the course page just shows again next time */
+  }
+};
+
 function saveLastView(v: View) {
   try {
     localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({ unit: BUILDINGS[v.unit].label, level: v.level }));
@@ -72,11 +91,18 @@ const loadCourses = () => (courses ??= fetchCourses().catch(() => []));
 const escapeHtml = (v: string) =>
   v.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
-/** `onCancel` is set when changing course from the menu (US30): it adds a way back to the map. */
-function showOnboarding(error = '', value = '', onCancel?: () => void) {
+/**
+ * The course page: first visit and "Add / Change course" from the menu.
+ * The course is optional – the × button goes (back) to the map without
+ * changing it. `back` is the map state to return to, if there is one.
+ */
+function showCoursePage({ error = '', value = '', back = active }: { error?: string; value?: string; back?: State | null } = {}) {
   session?.stop();
   app.innerHTML = `
     <form class="onboarding" novalidate>
+      <button type="button" class="corner-btn close-btn" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>
+      </button>
       <h1 class="start-logo">${LOGO_STACKED}</h1>
       <div class="combo">
         <div class="field${error ? ' invalid' : ''}">
@@ -90,13 +116,18 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
         <ul class="suggestions" id="suggestions" role="listbox" aria-label="Matching courses" hidden></ul>
       </div>
       <p class="error" role="alert">${error}</p>
-      ${onCancel ? '<button type="button" class="cancel">Cancel</button>' : ''}
     </form>`;
   const form = app.querySelector('form')!;
   const input = form.querySelector('input')!;
   const list = form.querySelector<HTMLUListElement>('.suggestions')!;
   input.value = value;
   input.focus();
+
+  const leave = () => {
+    setWelcomed();
+    if (back) run(back);
+    else void start(getCourse());
+  };
 
   let matches: Course[] = [];
   let active = -1;
@@ -151,13 +182,14 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
     try {
       const events = await fetchLectures(course);
       setCourse(course);
-      start(course, events);
+      setWelcomed();
+      void start(course, events);
     } catch (err) {
-      showOnboarding(
-        err instanceof CourseNotFoundError ? 'Course not found' : 'Connection problem – try again',
-        course,
-        onCancel,
-      );
+      showCoursePage({
+        error: err instanceof CourseNotFoundError ? 'Course not found' : 'Connection problem – try again',
+        value: course,
+        back,
+      });
     }
   };
 
@@ -175,7 +207,7 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
   input.addEventListener('blur', close);
   input.addEventListener('keydown', (e) => {
     if (!matches.length) {
-      if (e.key === 'Escape' && onCancel) onCancel();
+      if (e.key === 'Escape') leave();
       return;
     }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -199,7 +231,7 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
     e.preventDefault();
     void submit(matches[Number(li.dataset.index)].id);
   });
-  form.querySelector('.cancel')?.addEventListener('click', () => onCancel?.());
+  form.querySelector('.close-btn')!.addEventListener('click', leave);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void submit(input.value);
@@ -210,7 +242,8 @@ function showOnboarding(error = '', value = '', onCancel?: () => void) {
 
 // ── main screen ───────────────────────────────────────────────────────
 interface State {
-  course: string;
+  /** null: used without a course (no own room, rooms count as free for an hour). */
+  course: string | null;
   events: LectureEvent[];
   rooms: ApiRoom[];
   /** null until the default view has been resolved on first render. */
@@ -236,13 +269,15 @@ const noop = () => {};
 const MENU_ICONS = {
   dots: '<circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>',
   course: '<path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5M20 16H7M10.5 12.5 7 16l3.5 3.5"/>',
+  add: '<path d="M12 5.5v13M5.5 12h13"/>',
+  remove: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   own: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>',
 };
 const menuIcon = (name: keyof typeof MENU_ICONS) => `<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[name]}</svg>`;
 
 function menu(state: State, hasOwn: boolean) {
   const button = `
-    <button class="menu-btn" aria-label="Menu" aria-haspopup="menu"
+    <button class="corner-btn menu-btn" aria-label="Menu" aria-haspopup="menu"
       aria-expanded="${state.menuOpen}" aria-controls="menu">${menuIcon('dots')}</button>`;
   if (!state.menuOpen) return button;
   const item = (action: string, icon: keyof typeof MENU_ICONS, label: string) =>
@@ -251,9 +286,10 @@ function menu(state: State, hasOwn: boolean) {
     <div class="menu-backdrop"></div>
     <div class="menu" id="menu" role="menu" aria-label="Menu">
       <div class="menu-logo" role="presentation">${LOGO_HORIZONTAL}</div>
-      <div class="menu-course" role="presentation"><span>Course</span><strong>${escapeHtml(state.course)}</strong></div>
-      ${item('course', 'course', 'Change course')}
+      ${state.course ? `<div class="menu-course" role="presentation"><span>Course</span><strong>${escapeHtml(state.course)}</strong></div>` : ''}
+      ${state.course ? item('course', 'course', 'Change course') : item('course', 'add', 'Add course')}
       ${hasOwn ? item('own', 'own', 'Go to my room') : ''}
+      ${state.course ? item('remove', 'remove', 'Remove course') : ''}
     </div>`;
 }
 
@@ -346,7 +382,7 @@ function render(state: State, direction: Direction | null = null, changed: 'floo
   const { location, statuses, floors, own } = compute(state.rooms, state.events, now());
 
   if (!state.view) {
-    state.view = own ?? loadLastView() ?? { unit: 0, level: 0 };
+    state.view = own ?? loadLastView() ?? { ...DEFAULT_VIEW };
     state.view.level = closestLevel(floors[state.view.unit], state.view.level);
   }
   const { unit, level } = state.view;
@@ -454,7 +490,13 @@ function bindMenu(state: State, own: View | null) {
   const actions: Record<string, () => void> = {
     course: () => {
       state.menuOpen = false;
-      showOnboarding('', '', () => run(state));
+      showCoursePage({ value: state.course ?? '' });
+    },
+    remove: () => {
+      clearCourse();
+      state.course = null;
+      state.events = [];
+      setOpen(false);
     },
     own: () => {
       const prev = state.view;
@@ -524,7 +566,12 @@ let session: { stop(): void } | null = null;
 
 async function refetch(state: State) {
   try {
-    [state.events, state.rooms] = await Promise.all([fetchLectures(state.course), fetchRooms(now())]);
+    const course = state.course;
+    const [events, rooms] = await Promise.all([course ? fetchLectures(course) : [], fetchRooms(now())]);
+    // The course may have been changed/removed meanwhile: only apply matching data.
+    if (state.course !== course) return;
+    state.events = events;
+    state.rooms = rooms;
   } catch {
     /* keep showing the last known data */
   }
@@ -565,22 +612,23 @@ function run(state: State, { showIntro = false } = {}) {
   if (showIntro) intro();
 }
 
-async function start(course: string, events?: LectureEvent[]) {
+/** Loads everything for `course` (or none) and shows the map. */
+async function start(course: string | null, events?: LectureEvent[]) {
   session?.stop();
   app.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
   try {
-    const [ev, rooms] = await Promise.all([events ?? fetchLectures(course), fetchRooms(now())]);
+    const [ev, rooms] = await Promise.all([events ?? (course ? fetchLectures(course) : []), fetchRooms(now())]);
     run({ course, events: ev, rooms, view: null, menuOpen: false }, { showIntro: true });
   } catch (err) {
     if (err instanceof CourseNotFoundError) {
       clearCourse();
-      return showOnboarding('Course not found');
+      return showCoursePage({ error: 'Course not found', back: null });
     }
     app.innerHTML = `<div class="loading-screen"><button class="retry">Retry</button></div>`;
-    app.querySelector('.retry')!.addEventListener('click', () => start(course));
+    app.querySelector('.retry')!.addEventListener('click', () => void start(course));
   }
 }
 
 const saved = getCourse();
-if (saved) void start(saved);
-else showOnboarding();
+if (saved || isWelcomed()) void start(saved);
+else showCoursePage();

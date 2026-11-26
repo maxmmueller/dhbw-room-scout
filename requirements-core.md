@@ -2,7 +2,7 @@
 
 **Problem:** After a lecture, students at DHBW Mannheim want to find a free room to study in, but they don't know which rooms are free, or for how long.
 
-**Solution:** A minimal, mobile-first web app. Enter your course once, and it shows an isometric floor plan of the building you're in, with every room colored by whether you can use it right now: **green** = free, **yellow** = free, but not for long, **grey** = taken or locked.
+**Solution:** A minimal, mobile-first web app. Enter your course once (or skip it), and it shows an isometric floor plan of the building you're in, with every room colored by whether you can use it right now: **green** = free, **yellow** = free, but not for long, **grey** = taken or locked.
 
 This document lists only the **core** user stories, the ones the app can't work without. The complete list, with refinements and design details, is in [`requirements.md`](requirements.md). The story IDs are the same in both files and on our kanban board.
 
@@ -12,7 +12,7 @@ This document lists only the **core** user stories, the ones the app can't work 
 
 | ID | As a student, I want … | Area | Status |
 |---|---|---|---|
-| [US01](#us01--one-time-course-entry) | to enter my course only once | Onboarding | Done |
+| [US01](#us01--optional-course-entry) | to enter my course once, or skip it | Onboarding | Done |
 | [US03](#us03--validate-the-course) | to know right away if I mistyped my course | Onboarding | Done |
 | [US04](#us04--isometric-floor-plan) | to see a floor plan of the building | Floor plan | In progress (B/C done; A, D, E open) |
 | [US05](#us05--only-usable-rooms-are-drawn) | to see only rooms I can actually use | Floor plan | Done |
@@ -32,15 +32,16 @@ This document lists only the **core** user stories, the ones the app can't work 
 
 ## 1. Onboarding
 
-#### US01 – One-time course entry
+#### US01 – Optional course entry
 
 > As a **first-time user**,
-> I want to **enter my course ID once**,
-> so that **the app can load my timetable**.
+> I want to **enter my course ID once, or skip it**,
+> so that **the app can load my timetable, but also works without one**.
 
 **Acceptance criteria:**
 - The start screen has just one text field (with an example such as `TINF25IT1`).
 - The course is remembered on the device; later visits open the map directly.
+- A × button closes the page: the app then works without a course (no own room, rooms count as free if they stay free for an hour).
 
 #### US03 – Validate the course
 
@@ -119,7 +120,7 @@ This document lists only the **core** user stories, the ones the app can't work 
 
 **Acceptance criteria:**
 - My room is the room of my **current** lecture; otherwise my **last** lecture today; otherwise my **next** one.
-- The app opens on that building and floor.
+- The app opens on that building and floor; without one, on B/C, 1st floor.
 
 #### US13 – Highlight own room
 

@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173, enter a course ID (e.g. `TINF25IT1`) and press Enter.
+Open http://localhost:5173, enter a course ID (e.g. `TINF25IT1`) and press Enter, or close the page with × to use the app without a course.
 
 | Command | Purpose |
 |---|---|
@@ -32,7 +32,8 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 ### Testing tips
 
 - **Simulate a time:** add `?now=<ISO datetime>` to the URL, e.g. `http://localhost:5173/?now=2026-11-18T15:00` (local time). This is meant for demos and testing and is not linked from the UI.
-- **Change the course:** delete the `course` cookie (DevTools → Application → Cookies) and reload.
+- **Change or remove the course:** use the menu (⋯) in the top-right corner.
+- **See the first-visit course page again:** delete the `course` cookie and `welcomed` from Local Storage, then reload.
 - **Reset the default view:** delete `lastView` from Local Storage.
 - **Switch floors:** swipe vertically, scroll the mouse wheel, press ↑ / ↓, or tap a dot of the floor indicator (top right).
 - **Switch buildings:** swipe horizontally, press ← / →, or tap a dot of the building indicator (bottom center).
@@ -52,7 +53,7 @@ Opening `dist/index.html` directly does **not** work, because the API calls need
 index.html            App shell
 vite.config.ts        Dev/preview proxy for the DHBW APIs
 src/
-  main.ts             Onboarding, cookie, main screen, floor/building navigation, refresh loop (DOM only)
+  main.ts             Course page, cookie, main screen, floor/building navigation, refresh loop (DOM only)
   model.ts            Pure app logic: floors per building, own room, default floor, course suggestions
   api.ts              API types, fetch functions (with timeout) and response validation
   availability.ts     Room filter, user location, status rules, lockable rooms
@@ -103,7 +104,7 @@ If a lecture lists several rooms, the first one is used.
 **Default view:**
 1. the building and floor of the user's own room
 2. otherwise the last viewed building and floor (`localStorage`, key `lastView`)
-3. otherwise B/C, ground floor (EG)
+3. otherwise B/C, 1st floor (1. OG)
 
 After switching buildings, the same floor level is kept if it exists, otherwise the closest one.
 

@@ -63,6 +63,12 @@ describe('dayContext', () => {
     expect(ctx.freeUntilTarget).toEqual(at(17));
   });
 
+  it('without lectures (or without a course) has no location and targets one hour', () => {
+    const ctx = dayContext([], at(10));
+    expect(ctx.location).toBeNull();
+    expect(ctx.freeUntilTarget).toEqual(at(11));
+  });
+
   it('ignores cancelled lectures and other days', () => {
     const other = { ...lecture(9, 10, '999X'), startTime: new Date(2026, 10, 25, 9).toISOString() };
     const ctx = dayContext([lecture(8, 10, '111A', { cancelled: true }), other], at(9));

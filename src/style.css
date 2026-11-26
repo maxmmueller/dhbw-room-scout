@@ -84,6 +84,7 @@ body {
 
 /* ── onboarding ─────────────────────────────────────────────── */
 .onboarding {
+  position: relative;
   height: 100%;
   display: grid;
   place-content: center;
@@ -238,21 +239,6 @@ body {
 @keyframes drop-in {
   from { opacity: 0; transform: translateY(-4px); }
 }
-
-.cancel {
-  display: block;
-  margin: 4px auto 0;
-  padding: 8px 14px;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  font: 600 14px/1 var(--font);
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.cancel:hover { color: var(--ink); background: rgb(29 35 48 / 4%); }
-.onboarding.loading .cancel { opacity: 0.4; pointer-events: none; }
 
 @keyframes shake {
   25% { transform: translateX(-6px); }
@@ -513,7 +499,8 @@ body {
   padding: 10px 12px 4px;
 }
 
-.menu-btn {
+/* Top-right corner button: the menu (⋯) on the map, close (×) on the course page. */
+.corner-btn {
   position: absolute;
   z-index: 3;
   top: max(12px, env(safe-area-inset-top));
@@ -530,17 +517,26 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 
-.menu-btn:hover,
+.corner-btn:hover,
 .menu-btn[aria-expanded='true'] {
   color: var(--ink);
   background: rgb(29 35 48 / 6%);
 }
 
-.menu-btn svg {
+.corner-btn svg {
   width: 22px;
   height: 22px;
   fill: currentColor;
 }
+
+.close-btn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.onboarding.loading .close-btn { opacity: 0.4; pointer-events: none; }
 
 .menu-backdrop {
   position: fixed;
